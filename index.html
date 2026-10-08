@@ -8,17 +8,17 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.1.1/jspdf.umd.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
     .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     .hidden { display: none !important; }
-    .bg-slate-900\/50 { background-color: rgba(15, 23, 42, 0.5); }
+    .order-btn { opacity: 0.8; }
+    .order-btn:hover { opacity: 1; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
-
   <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
       <div class="flex items-center space-x-3">
@@ -54,7 +54,6 @@
   </header>
 
   <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
-
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Liquidity</span>
@@ -130,17 +129,23 @@
       </div>
 
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="p-4 border-b border-slate-100 flex justify-between items-center">
+        <div class="p-4 border-b border-slate-100 flex justify-between items-center flex-wrap gap-2">
           <h2 class="font-bold text-slate-700 text-sm uppercase">Transactions Ledger</h2>
-          <div class="flex gap-2 flex-wrap">
+          <div class="flex gap-2 flex-wrap items-center">
+            <select id="transactionSortSelect" class="text-xs border rounded p-1.5 focus:outline-none">
+              <option value="date_desc">Newest First</option>
+              <option value="date_asc">Oldest First</option>
+              <option value="time_asc">Time Asc</option>
+              <option value="time_desc">Time Desc</option>
+            </select>
             <button id="exportCsvBtn" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1.5 rounded transition flex items-center gap-1">
-              <i class="fa-solid fa-file-csv"></i> Export CSV
+              <i class="fa-solid fa-file-csv"></i> CSV
             </button>
             <button id="exportPdfBtn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded transition">
-              <i class="fa-solid fa-file-pdf"></i> Export PDF
+              <i class="fa-solid fa-file-pdf"></i> PDF
             </button>
             <button id="exportJsonBtn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded transition">
-              <i class="fa-solid fa-download"></i> Backup JSON
+              <i class="fa-solid fa-download"></i> JSON
             </button>
           </div>
         </div>
@@ -149,12 +154,15 @@
             <thead class="bg-slate-50 text-slate-400 uppercase font-semibold border-b border-slate-100">
               <tr>
                 <th class="p-3">Date</th>
+                <th class="p-3">Time</th>
                 <th class="p-3">Type</th>
                 <th class="p-3">Category</th>
                 <th class="p-3">Vendor / Payee</th>
                 <th class="p-3">Account</th>
-                <th class="p-3">Tags</th>
+                <th class="p-3">Currency</th>
                 <th class="p-3 text-right">Amount</th>
+                <th class="p-3 text-right">INR Equivalent</th>
+                <th class="p-3">Tags</th>
                 <th class="p-3 text-center">Actions</th>
               </tr>
             </thead>
@@ -196,7 +204,6 @@
         <div id="splitLedgerSummary" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs"></div>
       </div>
     </div>
-
   </main>
 
   <div id="transactionModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
@@ -424,7 +431,7 @@
           <input type="file" id="importFileInput" accept=".xlsx, .xls, .csv" class="w-full border rounded-lg p-2" />
         </div>
         <div class="text-[11px] text-slate-500">
-          Import format example:<br>
+          Import examples:<br>
           Accounts: name,type,currency,balance<br>
           Transactions: date,time,type,amount,currency,account,category,vendor,tags,notes
         </div>
@@ -441,6 +448,7 @@
       constructor() {
         this.fxRates = { USD: 1.0, EUR: 0.92, GBP: 0.79, INR: 83.5, AED: 3.67 };
         this.data = this.loadSavedState() || this.getDefaultAccountsData();
+        this.transactionSortMode = 'date_desc';
         this.categoryChart = null;
         this.trendChart = null;
 
@@ -478,13 +486,8 @@
             { id: 'acc-hdfc-sav', name: 'HDFC Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 98000, currentBalance: 98000, parentId: null },
             { id: 'acc-sbi-sav', name: 'SBI Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 120000, currentBalance: 120000, parentId: null },
             { id: 'acc-icici-sap', name: 'ICICI Sapphiro Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-icici-sav' },
-            { id: 'acc-icici-rupay', name: 'ICICI Rupay Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-icici-sav' },
-            { id: 'acc-icici-amex', name: 'ICICI Amex Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-icici-sav' },
-            { id: 'acc-hdfc-mill', name: 'HDFC Millenia Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-hdfc-sav' },
-            { id: 'acc-bob-scapia', name: 'BOB Scapia Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: null },
-            { id: 'acc-sbi-card', name: 'SBI Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-sbi-sav' },
-            { id: 'acc-cash-inr', name: 'Cash ( INR )', type: 'CASH', currency: 'INR', initialBalance: 25000, currentBalance: 25000, parentId: null },
-            { id: 'acc-cash-usd', name: 'Cash ( USD )', type: 'CASH', currency: 'USD', initialBalance: 300, currentBalance: 300, parentId: null }
+            { id: 'acc-cash-usd', name: 'Cash ( USD )', type: 'CASH', currency: 'USD', initialBalance: 300, currentBalance: 300, parentId: null },
+            { id: 'acc-cash-inr', name: 'Cash ( INR )', type: 'CASH', currency: 'INR', initialBalance: 25000, currentBalance: 25000, parentId: null }
           ],
           categories: [
             { id: 'cat-1', name: 'Travel', type: 'EXPENSE', color: '#6366f1', monthlyBudget: 20000 },
@@ -495,9 +498,9 @@
             { id: 'cat-6', name: 'Freelance', type: 'INCOME', color: '#06b6d4', monthlyBudget: 0 }
           ],
           transactions: [
-            { id: 'tx-demo-1', type: 'INCOME', date: isoDate(-12), time: '09:30', amount: 180000, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-4', subcategory: 'Monthly Salary', vendor: 'Company', tags: ['salary'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-1', type: 'INCOME', date: isoDate(-12), time: '09:30', amount: 180000, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-4', subcategory: 'Salary', vendor: 'Company', tags: ['salary'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
             { id: 'tx-demo-2', type: 'EXPENSE', date: isoDate(-9), time: '13:15', amount: 6500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-2', subcategory: 'Lunch', vendor: 'Restaurant', tags: ['food'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
-            { id: 'tx-demo-3', type: 'EXPENSE', date: isoDate(-7), time: '18:45', amount: 13500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-sbi-card', categoryId: 'cat-1', subcategory: 'Flight', vendor: 'Airline', tags: ['travel'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-3', type: 'EXPENSE', date: isoDate(-7), time: '18:45', amount: 13500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-sbi-sav', categoryId: 'cat-1', subcategory: 'Flight', vendor: 'Airline', tags: ['travel'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
             { id: 'tx-demo-4', type: 'INCOME', date: isoDate(-6), time: '10:10', amount: 18500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-hdfc-sav', categoryId: 'cat-6', subcategory: 'Consulting', vendor: 'Client', tags: ['freelance'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
             { id: 'tx-demo-5', type: 'EXPENSE', date: isoDate(-4), time: '08:05', amount: 3200, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-cash-inr', categoryId: 'cat-3', subcategory: 'Power Bill', vendor: 'Electricity Board', tags: ['bill'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
             { id: 'tx-demo-6', type: 'EXPENSE', date: isoDate(-2), time: '12:00', amount: 250, currency: 'USD', fxMarkup: 0, fxOverride: null, accountId: 'acc-cash-usd', categoryId: 'cat-5', subcategory: 'Mutual Fund', vendor: 'Broker', tags: ['investment'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 }
@@ -514,10 +517,8 @@
         const numeric = Number(amount) || 0;
         const source = fromCurrency || this.data.baseCurrency;
         const target = toCurrency || this.data.baseCurrency;
-
         if (!this.fxRates[source] || !this.fxRates[target]) return numeric;
         if (source === target) return numeric;
-
         return (numeric * this.fxRates[target]) / this.fxRates[source];
       }
 
@@ -535,17 +536,15 @@
           budgetOverviewList: document.getElementById('budgetOverviewList'),
           budgetSummary: document.getElementById('budgetSummary'),
           insightCards: document.getElementById('insightCards'),
-
           accountListContainer: document.getElementById('accountListContainer'),
           categoryListContainer: document.getElementById('categoryListContainer'),
           splitLedgerSummary: document.getElementById('splitLedgerSummary'),
           transactionTableBody: document.getElementById('transactionTableBody'),
-
           filterDateRange: document.getElementById('filterDateRange'),
           filterCategory: document.getElementById('filterCategory'),
           filterAccount: document.getElementById('filterAccount'),
           filterTag: document.getElementById('filterTag'),
-
+          transactionSortSelect: document.getElementById('transactionSortSelect'),
           transactionModal: document.getElementById('transactionModal'),
           openTransactionModalBtn: document.getElementById('openTransactionModalBtn'),
           closeTransactionModalBtn: document.getElementById('closeTransactionModalBtn'),
@@ -568,7 +567,6 @@
           splitSection: document.getElementById('splitSection'),
           splitPerson: document.getElementById('splitPerson'),
           splitAmount: document.getElementById('splitAmount'),
-
           quickAccountCreate: document.getElementById('quickAccountCreate'),
           quickAccName: document.getElementById('quickAccName'),
           quickAccType: document.getElementById('quickAccType'),
@@ -576,7 +574,6 @@
           quickAccBalance: document.getElementById('quickAccBalance'),
           saveQuickAccBtn: document.getElementById('saveQuickAccBtn'),
           cancelQuickAccBtn: document.getElementById('cancelQuickAccBtn'),
-
           quickCategoryCreate: document.getElementById('quickCategoryCreate'),
           quickCatName: document.getElementById('quickCatName'),
           quickCatType: document.getElementById('quickCatType'),
@@ -584,7 +581,6 @@
           quickCatBudget: document.getElementById('quickCatBudget'),
           saveQuickCatBtn: document.getElementById('saveQuickCatBtn'),
           cancelQuickCatBtn: document.getElementById('cancelQuickCatBtn'),
-
           accountModal: document.getElementById('accountModal'),
           tabOpenAccountBtn: document.getElementById('tabOpenAccountBtn'),
           closeAccountModalBtn: document.getElementById('closeAccountModalBtn'),
@@ -596,7 +592,6 @@
           accCurrency: document.getElementById('accCurrency'),
           accParent: document.getElementById('accParent'),
           accBalance: document.getElementById('accBalance'),
-
           categoryForm: document.getElementById('categoryForm'),
           editingCategoryId: document.getElementById('editingCategoryId'),
           catNameInput: document.getElementById('catNameInput'),
@@ -604,7 +599,6 @@
           catColorInput: document.getElementById('catColorInput'),
           catBudgetInput: document.getElementById('catBudgetInput'),
           saveCatBtn: document.getElementById('saveCatBtn'),
-
           importModal: document.getElementById('importModal'),
           openImportModalBtn: document.getElementById('openImportModalBtn'),
           closeImportModalBtn: document.getElementById('closeImportModalBtn'),
@@ -612,13 +606,13 @@
           importFileInput: document.getElementById('importFileInput'),
           importType: document.getElementById('importType'),
           processImportBtn: document.getElementById('processImportBtn'),
-
           exportCsvBtn: document.getElementById('exportCsvBtn'),
           exportPdfBtn: document.getElementById('exportPdfBtn'),
           exportJsonBtn: document.getElementById('exportJsonBtn')
         };
 
         this.dom.baseCurrencySelect.value = this.data.baseCurrency;
+        this.dom.transactionSortSelect.value = this.transactionSortMode;
         this.dom.txDate.value = new Date().toISOString().split('T')[0];
         this.dom.txTime.value = new Date().toTimeString().slice(0, 5);
       }
@@ -647,10 +641,14 @@
           this.renderAll();
         });
 
+        this.dom.transactionSortSelect.addEventListener('change', (e) => {
+          this.transactionSortMode = e.target.value;
+          this.applyFilters();
+        });
+
         this.dom.openTransactionModalBtn.addEventListener('click', () => this.openTransactionModal());
         this.dom.closeTransactionModalBtn.addEventListener('click', () => this.closeTransactionModal());
         this.dom.cancelTransactionBtn.addEventListener('click', () => this.closeTransactionModal());
-
         this.dom.tabOpenAccountBtn.addEventListener('click', () => this.openAccountModal());
         this.dom.closeAccountModalBtn.addEventListener('click', () => this.closeAccountModal());
         this.dom.cancelAccountBtn.addEventListener('click', () => this.closeAccountModal());
@@ -665,7 +663,6 @@
 
         this.dom.txAccount.addEventListener('change', () => this.handleQuickCreateSelect('account'));
         this.dom.txCategory.addEventListener('change', () => this.handleQuickCreateSelect('category'));
-
         this.dom.saveQuickAccBtn.addEventListener('click', () => this.saveQuickAccount());
         this.dom.cancelQuickAccBtn.addEventListener('click', () => this.hideQuickCreate('account'));
         this.dom.saveQuickCatBtn.addEventListener('click', () => this.saveQuickCategory());
@@ -690,7 +687,6 @@
         this.data.accounts.forEach(acc => {
           acc.currentBalance = Number(acc.initialBalance) || 0;
         });
-
         this.data.transactions.forEach(tx => {
           const acc = this.data.accounts.find(a => a.id === tx.accountId);
           if (!acc) return;
@@ -698,6 +694,51 @@
           if (tx.type === 'INCOME') acc.currentBalance += baseAmount;
           else acc.currentBalance -= baseAmount;
         });
+      }
+
+      sortTransactionsList(list) {
+        const arr = [...list];
+        switch (this.transactionSortMode) {
+          case 'date_asc':
+            return arr.sort((a, b) => {
+              const da = new Date(`${a.date}T${a.time || '00:00'}`);
+              const db = new Date(`${b.date}T${b.time || '00:00'}`);
+              return da - db;
+            });
+          case 'time_asc':
+            return arr.sort((a, b) => {
+              const ta = new Date(`2000-01-01T${a.time || '00:00'}`);
+              const tb = new Date(`2000-01-01T${b.time || '00:00'}`);
+              return ta - tb;
+            });
+          case 'time_desc':
+            return arr.sort((a, b) => {
+              const ta = new Date(`2000-01-01T${a.time || '00:00'}`);
+              const tb = new Date(`2000-01-01T${b.time || '00:00'}`);
+              return tb - ta;
+            });
+          case 'date_desc':
+          default:
+            return arr.sort((a, b) => {
+              const da = new Date(`${a.date}T${a.time || '00:00'}`);
+              const db = new Date(`${b.date}T${b.time || '00:00'}`);
+              return db - da;
+            });
+        }
+      }
+
+      moveItem(listKey, itemId, direction) {
+        const list = this.data[listKey];
+        if (!Array.isArray(list)) return;
+        const idx = list.findIndex(item => item.id === itemId);
+        if (idx === -1) return;
+
+        const target = direction === 'up' ? idx - 1 : idx + 1;
+        if (target < 0 || target >= list.length) return;
+
+        [list[idx], list[target]] = [list[target], list[idx]];
+        this.saveState();
+        this.renderAll();
       }
 
       handleQuickCreateSelect(type) {
@@ -732,12 +773,10 @@
         const type = this.dom.quickAccType.value;
         const currency = this.dom.quickAccCurrency.value;
         const balance = Number(this.dom.quickAccBalance.value || 0);
-
         if (!name) {
           alert('Enter account name.');
           return;
         }
-
         const account = {
           id: 'acc-' + Date.now(),
           name,
@@ -747,7 +786,6 @@
           initialBalance: balance,
           currentBalance: balance
         };
-
         this.data.accounts.push(account);
         this.saveState();
         this.populateDropdowns();
@@ -763,12 +801,10 @@
         const type = this.dom.quickCatType.value;
         const color = this.dom.quickCatColor.value || '#4f46e5';
         const monthlyBudget = Number(this.dom.quickCatBudget.value || 0);
-
         if (!name) {
           alert('Enter category name.');
           return;
         }
-
         const category = {
           id: 'cat-' + Date.now(),
           name,
@@ -776,7 +812,6 @@
           color,
           monthlyBudget: monthlyBudget > 0 ? monthlyBudget : 0
         };
-
         this.data.categories.push(category);
         this.saveState();
         this.populateDropdowns();
@@ -789,7 +824,6 @@
 
       openTransactionModal(editingId = null) {
         this.populateDropdowns();
-
         if (editingId) {
           const tx = this.data.transactions.find(t => t.id === editingId);
           if (!tx) return;
@@ -826,7 +860,6 @@
           this.dom.quickAccountCreate.classList.add('hidden');
           this.dom.quickCategoryCreate.classList.add('hidden');
         }
-
         this.dom.transactionModal.classList.remove('hidden');
       }
 
@@ -838,7 +871,6 @@
 
       openAccountModal(editingId = null) {
         this.populateParentAccountOptions();
-
         if (editingId) {
           const acc = this.data.accounts.find(a => a.id === editingId);
           if (!acc) return;
@@ -852,7 +884,6 @@
           this.dom.editingAccountId.value = '';
           this.dom.accountForm.reset();
         }
-
         this.dom.accountModal.classList.remove('hidden');
       }
 
@@ -863,7 +894,6 @@
       populateDropdowns() {
         const accountOptions = this.data.accounts.map(a => `<option value="${a.id}">${a.name} (${a.currency})</option>`).join('');
         const categoryOptions = this.data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-
         this.dom.txAccount.innerHTML = `<option value="">Select Account</option><option value="__new_account__">+ Create New Account</option>${accountOptions}`;
         this.dom.txCategory.innerHTML = `<option value="">Select Category</option><option value="__new_category__">+ Create New Category</option>${categoryOptions}`;
         this.dom.filterCategory.innerHTML = `<option value="all">All Categories</option>` + this.data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -974,6 +1004,7 @@
         this.dom.categoryForm.reset();
         this.dom.editingCategoryId.value = '';
         this.dom.catColorInput.value = '#4f46e5';
+        this.dom.saveCatBtn.textContent = 'Add Category';
         this.renderCategoryList();
         this.renderAll();
       }
@@ -1021,7 +1052,7 @@
         const tagQuery = this.dom.filterTag.value.toLowerCase().trim();
         const now = new Date();
 
-        return this.data.transactions.filter(tx => {
+        const filtered = this.data.transactions.filter(tx => {
           if (catId !== 'all' && tx.categoryId !== catId) return false;
           if (accId !== 'all' && tx.accountId !== accId) return false;
           if (tagQuery && !(tx.tags && tx.tags.some(t => t.toLowerCase().includes(tagQuery)))) return false;
@@ -1035,6 +1066,8 @@
           if (dateRange === 'this_month') return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
           return true;
         });
+
+        return this.sortTransactionsList(filtered);
       }
 
       applyFilters() {
@@ -1055,30 +1088,36 @@
 
       renderTransactions(transactions) {
         this.dom.transactionTableBody.innerHTML = '';
-
         if (!transactions.length) {
-          this.dom.transactionTableBody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-slate-400">No transactions match the current filters.</td></tr>';
+          this.dom.transactionTableBody.innerHTML = '<tr><td colspan="11" class="p-4 text-center text-slate-400">No transactions match the current filters.</td></tr>';
           return;
         }
 
         transactions.forEach(tx => {
           const acc = this.data.accounts.find(a => a.id === tx.accountId);
           const cat = this.data.categories.find(c => c.id === tx.categoryId);
+          const txAmount = Number(tx.amount) || 0;
+          const inrEquivalent = this.convertCurrency(txAmount, tx.currency, 'INR');
 
           const row = document.createElement('tr');
           row.className = 'align-top';
           row.innerHTML = `
-            <td class="p-3">${tx.date}<div class="text-[10px] text-slate-400">${tx.time || '00:00'}</div></td>
+            <td class="p-3">${tx.date}</td>
+            <td class="p-3">${tx.time || '00:00'}</td>
             <td class="p-3"><span class="px-2 py-1 rounded-full ${tx.type === 'INCOME' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} font-medium">${tx.type}</span></td>
             <td class="p-3">${cat ? cat.name : 'Unknown'}</td>
             <td class="p-3">${tx.vendor || '-'}</td>
             <td class="p-3">${acc ? acc.name : '-'}</td>
+            <td class="p-3 font-semibold">${tx.currency}</td>
+            <td class="p-3 text-right font-bold ${tx.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}">${this.formatCurrency(txAmount, tx.currency)}</td>
+            <td class="p-3 text-right font-semibold text-indigo-700">${this.formatCurrency(inrEquivalent, 'INR')}</td>
             <td class="p-3">${tx.tags && tx.tags.length ? tx.tags.map(t => `#${t}`).join(', ') : '-'}</td>
-            <td class="p-3 text-right font-bold ${tx.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}">${this.formatCurrency(this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency), this.data.baseCurrency)}</td>
             <td class="p-3 text-center">
               <div class="flex justify-center gap-2">
-                <button onclick="window.app.openTransactionModal('${tx.id}')" class="text-indigo-600 hover:underline"><i class="fa-solid fa-pen"></i></button>
-                <button onclick="window.app.deleteTransaction('${tx.id}')" class="text-rose-500 hover:underline"><i class="fa-solid fa-trash"></i></button>
+                <button onclick="window.app.moveItem('transactions', '${tx.id}', 'up')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Up"><i class="fa-solid fa-arrow-up"></i></button>
+                <button onclick="window.app.moveItem('transactions', '${tx.id}', 'down')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Down"><i class="fa-solid fa-arrow-down"></i></button>
+                <button onclick="window.app.openTransactionModal('${tx.id}')" class="text-indigo-600 hover:underline" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="window.app.deleteTransaction('${tx.id}')" class="text-rose-500 hover:underline" title="Delete"><i class="fa-solid fa-trash"></i></button>
               </div>
             </td>
           `;
@@ -1110,7 +1149,9 @@
             </div>
             <div class="text-right">
               <div class="font-bold text-sm text-slate-700">${balanceDisplay}</div>
-              <div class="flex gap-2 justify-end mt-1">
+              <div class="flex gap-2 justify-end mt-1 flex-wrap">
+                <button onclick="window.app.moveItem('accounts', '${acc.id}', 'up')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Up"><i class="fa-solid fa-arrow-up"></i></button>
+                <button onclick="window.app.moveItem('accounts', '${acc.id}', 'down')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Down"><i class="fa-solid fa-arrow-down"></i></button>
                 <button onclick="window.app.openAccountModal('${acc.id}')" class="text-xs text-indigo-600 font-medium hover:underline"><i class="fa-solid fa-pen"></i> Edit</button>
                 <button onclick="window.app.deleteAccount('${acc.id}')" class="text-xs text-rose-500 font-medium hover:underline"><i class="fa-solid fa-trash"></i> Delete</button>
               </div>
@@ -1135,6 +1176,8 @@
             </div>
             <div class="flex items-center gap-2">
               ${cat.monthlyBudget ? `<span class="text-[10px] text-slate-500">Budget: ${this.formatCurrency(cat.monthlyBudget, this.data.baseCurrency)}</span>` : '<span class="text-[10px] text-slate-500">No budget</span>'}
+              <button onclick="window.app.moveItem('categories', '${cat.id}', 'up')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Up"><i class="fa-solid fa-arrow-up"></i></button>
+              <button onclick="window.app.moveItem('categories', '${cat.id}', 'down')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Down"><i class="fa-solid fa-arrow-down"></i></button>
               <button onclick="window.app.openCategoryEditor('${cat.id}')" class="text-indigo-500 hover:underline"><i class="fa-solid fa-pen"></i></button>
               <button onclick="window.app.deleteCategory('${cat.id}')" class="text-rose-500 hover:underline"><i class="fa-solid fa-trash"></i></button>
             </div>
@@ -1146,13 +1189,11 @@
       renderSplitLedgerSummary() {
         const container = this.dom.splitLedgerSummary;
         container.innerHTML = '';
-
         const splitTransactions = this.data.transactions.filter(tx => tx.isSplit && tx.splitPerson && Number(tx.splitAmount || 0) > 0);
-        if (splitTransactions.length === 0) {
+        if (!splitTransactions.length) {
           container.innerHTML = '<div class="col-span-full p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">No split expenses yet.</div>';
           return;
         }
-
         splitTransactions.forEach(tx => {
           const card = document.createElement('div');
           const owed = this.convertCurrency(Number(tx.splitAmount || 0), tx.currency, this.data.baseCurrency);
@@ -1168,26 +1209,21 @@
 
       renderBudgetOverview() {
         const monthStart = new Date();
-        monthStart.setDate(1);
-        monthStart.setHours(0, 0, 0, 0);
-
-        const monthlyBudgetList = this.data.categories.filter(cat => cat.type === 'EXPENSE' && Number(cat.monthlyBudget || 0) > 0);
+        monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
         const budgetOverview = this.dom.budgetOverviewList;
         budgetOverview.innerHTML = '';
-
+        const monthlyBudgetList = this.data.categories.filter(cat => cat.type === 'EXPENSE' && Number(cat.monthlyBudget || 0) > 0);
         let totalBudget = 0;
         let totalSpent = 0;
 
         monthlyBudgetList.forEach(cat => {
-          const spent = this.data.transactions
-            .filter(tx => tx.type === 'EXPENSE' && tx.categoryId === cat.id)
-            .reduce((sum, tx) => {
-              const txDate = new Date(tx.date);
-              if (txDate.getMonth() === monthStart.getMonth() && txDate.getFullYear() === monthStart.getFullYear()) {
-                return sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency);
-              }
-              return sum;
-            }, 0);
+          const spent = this.data.transactions.filter(tx => tx.type === 'EXPENSE' && tx.categoryId === cat.id).reduce((sum, tx) => {
+            const txDate = new Date(tx.date);
+            if (txDate.getMonth() === monthStart.getMonth() && txDate.getFullYear() === monthStart.getFullYear()) {
+              return sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency);
+            }
+            return sum;
+          }, 0);
 
           const effectiveBudget = Number(cat.monthlyBudget || 0);
           totalBudget += effectiveBudget;
@@ -1217,25 +1253,18 @@
 
         this.dom.budgetSummary.textContent = `${this.formatCurrency(totalSpent, this.data.baseCurrency)} / ${this.formatCurrency(totalBudget, this.data.baseCurrency)}`;
 
-        const topCategory = this.data.categories
-          .filter(cat => cat.type === 'EXPENSE')
-          .map(cat => ({
-            ...cat,
-            spent: this.data.transactions
-              .filter(tx => tx.type === 'EXPENSE' && tx.categoryId === cat.id)
-              .reduce((sum, tx) => {
-                const txDate = new Date(tx.date);
-                if (txDate.getMonth() === monthStart.getMonth() && txDate.getFullYear() === monthStart.getFullYear()) {
-                  return sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency);
-                }
-                return sum;
-              }, 0)
-          }))
-          .sort((a, b) => b.spent - a.spent)[0];
+        const topCategory = this.data.categories.filter(cat => cat.type === 'EXPENSE').map(cat => ({
+          ...cat,
+          spent: this.data.transactions.filter(tx => tx.type === 'EXPENSE' && tx.categoryId === cat.id).reduce((sum, tx) => {
+            const txDate = new Date(tx.date);
+            if (txDate.getMonth() === monthStart.getMonth() && txDate.getFullYear() === monthStart.getFullYear()) {
+              return sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency);
+            }
+            return sum;
+          }, 0)
+        })).sort((a, b) => b.spent - a.spent)[0];
 
-        const largestTxn = [...this.data.transactions]
-          .filter(tx => tx.type === 'EXPENSE')
-          .sort((a, b) => this.convertCurrency(Number(b.amount), b.currency, this.data.baseCurrency) - this.convertCurrency(Number(a.amount), a.currency, this.data.baseCurrency))[0];
+        const largestTxn = [...this.data.transactions].filter(tx => tx.type === 'EXPENSE').sort((a, b) => this.convertCurrency(Number(b.amount), b.currency, this.data.baseCurrency) - this.convertCurrency(Number(a.amount), a.currency, this.data.baseCurrency))[0];
 
         const insightList = [];
         if (topCategory) {
@@ -1270,12 +1299,8 @@
           Notes: tx.notes || ''
         }));
 
-        const headers = Object.keys(rows[0] || {
-          Date: '', Time: '', Type: '', Amount: '', Currency: '', Account: '', Category: '', Vendor: '', Tags: '', Notes: ''
-        });
-
+        const headers = Object.keys(rows[0] || { Date: '', Time: '', Type: '', Amount: '', Currency: '', Account: '', Category: '', Vendor: '', Tags: '', Notes: '' });
         const csv = [headers.join(',')].concat(rows.map(row => headers.map(key => `"${String(row[key] || '').replace(/"/g, '""')}"`).join(','))).join('\n');
-
         this.downloadFile(csv, 'trackwise-transactions.csv', 'text/csv;charset=utf-8;');
       }
 
@@ -1284,7 +1309,6 @@
           alert('PDF export library not loaded.');
           return;
         }
-
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         let y = 18;
@@ -1296,25 +1320,15 @@
           tx.date,
           tx.time || '',
           tx.type,
-          `${this.formatCurrency(this.convertCurrency(Number(tx.amount), tx.currency, this.data.baseCurrency), this.data.baseCurrency).replace('INR ', '')}`,
+          `${this.convertCurrency(Number(tx.amount), tx.currency, 'INR').toFixed(2)}`,
           this.data.accounts.find(a => a.id === tx.accountId)?.name || '',
           this.data.categories.find(c => c.id === tx.categoryId)?.name || ''
         ]);
 
         doc.setFontSize(10);
-        doc.text('Date', 14, y);
-        doc.text('Time', 38, y);
-        doc.text('Type', 58, y);
-        doc.text('Amt', 78, y);
-        doc.text('Account', 100, y);
-        doc.text('Category', 150, y);
-        y += 6;
-
+        doc.text('Date', 14, y); doc.text('Time', 38, y); doc.text('Type', 58, y); doc.text('INR', 78, y); doc.text('Account', 100, y); doc.text('Category', 150, y); y += 6;
         rows.forEach((row) => {
-          if (y > 280) {
-            doc.addPage();
-            y = 20;
-          }
+          if (y > 280) { doc.addPage(); y = 20; }
           doc.text(String(row[0] || ''), 14, y);
           doc.text(String(row[1] || ''), 38, y);
           doc.text(String(row[2] || ''), 58, y);
@@ -1323,7 +1337,6 @@
           doc.text(String(row[5] || '').slice(0, 18), 150, y);
           y += 6;
         });
-
         doc.save('trackwise-transactions.pdf');
       }
 
@@ -1357,8 +1370,7 @@
         if (fileName.endsWith('.csv')) {
           const reader = new FileReader();
           reader.onload = (e) => {
-            const csvText = e.target.result;
-            const rows = this.parseCSV(csvText);
+            const rows = this.parseCSV(e.target.result);
             this.importRows(kind, rows);
           };
           reader.readAsText(file);
@@ -1400,8 +1412,7 @@
           rows.forEach(row => {
             const name = (row.name || row.account || row.Account || '').trim();
             if (!name) return;
-            const existing = this.data.accounts.find(a => a.name.toLowerCase() === name.toLowerCase());
-            if (existing) return;
+            if (this.data.accounts.some(a => a.name.toLowerCase() === name.toLowerCase())) return;
             const account = {
               id: 'acc-' + Date.now() + '-' + Math.random().toString(16).slice(2),
               name,
