@@ -86,6 +86,21 @@
           <div class="relative h-64"><canvas id="trendChart"></canvas></div>
         </div>
       </div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xs font-bold text-slate-500 uppercase">Monthly Budget Tracker</h3>
+            <span id="budgetSummary" class="text-xs font-semibold text-slate-500">₹0 / ₹0</span>
+          </div>
+          <div id="budgetOverviewList" class="space-y-3"></div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-xs font-bold text-slate-500 uppercase mb-4">Smart Insights</h3>
+          <div id="insightCards" class="space-y-3"></div>
+        </div>
+      </div>
     </div>
 
     <!-- TAB CONTENT: TRANSACTIONS -->
@@ -161,13 +176,15 @@
     <div id="tab-categories" class="tab-content hidden space-y-4">
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <h2 class="font-bold text-slate-700 text-sm uppercase mb-3">Manage Categories</h2>
-        <form id="categoryForm" class="flex gap-2 text-xs">
+        <form id="categoryForm" class="flex flex-wrap gap-2 text-xs">
           <input type="hidden" id="editingCategoryId" value="" />
-          <input type="text" id="catNameInput" placeholder="New Category Name" class="border rounded p-2 flex-grow focus:outline-none" required />
+          <input type="text" id="catNameInput" placeholder="New Category Name" class="border rounded p-2 flex-grow focus:outline-none min-w-[180px]" required />
           <select id="catTypeInput" class="border rounded p-2 focus:outline-none">
             <option value="EXPENSE">Expense</option>
             <option value="INCOME">Income</option>
           </select>
+          <input type="color" id="catColorInput" value="#4f46e5" class="border rounded p-1 w-12 h-10 bg-white" title="Category color" />
+          <input type="number" id="catBudgetInput" placeholder="Monthly Budget" min="0" step="100" class="border rounded p-2 w-36 focus:outline-none" />
           <button type="submit" id="saveCatBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg">Add Category</button>
         </form>
       </div>
@@ -420,12 +437,12 @@
             { id: 'acc-cash-usd', name: 'Cash ( USD )', type: 'CASH', currency: 'USD', initialBalance: 300, currentBalance: 300, parentId: null }
           ],
           categories: [
-            { id: 'cat-1', name: 'Travel', type: 'EXPENSE' },
-            { id: 'cat-2', name: 'Food & Dining', type: 'EXPENSE' },
-            { id: 'cat-3', name: 'Utilities', type: 'EXPENSE' },
-            { id: 'cat-4', name: 'Salary', type: 'INCOME' },
-            { id: 'cat-5', name: 'Investment', type: 'EXPENSE' },
-            { id: 'cat-6', name: 'Freelance', type: 'INCOME' }
+            { id: 'cat-1', name: 'Travel', type: 'EXPENSE', color: '#6366f1', monthlyBudget: 20000 },
+            { id: 'cat-2', name: 'Food & Dining', type: 'EXPENSE', color: '#f59e0b', monthlyBudget: 12000 },
+            { id: 'cat-3', name: 'Utilities', type: 'EXPENSE', color: '#10b981', monthlyBudget: 8000 },
+            { id: 'cat-4', name: 'Salary', type: 'INCOME', color: '#22c55e', monthlyBudget: 0 },
+            { id: 'cat-5', name: 'Investment', type: 'EXPENSE', color: '#8b5cf6', monthlyBudget: 10000 },
+            { id: 'cat-6', name: 'Freelance', type: 'INCOME', color: '#06b6d4', monthlyBudget: 0 }
           ],
           transactions: [
             { id: 'tx-demo-1', type: 'INCOME', date: isoDate(-12), amount: 180000, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-4', subcategory: 'Monthly Salary', vendor: 'Company Payroll', tags: ['#salary', '#payroll'], notes: 'Primary salary deposit', isSplit: false, splitPerson: null, splitAmount: 0 },
@@ -465,6 +482,9 @@
           summaryIncome: document.getElementById('summaryIncome'),
           summaryExpense: document.getElementById('summaryExpense'),
           summaryNet: document.getElementById('summaryNet'),
+          budgetOverviewList: document.getElementById('budgetOverviewList'),
+          budgetSummary: document.getElementById('budgetSummary'),
+          insightCards: document.getElementById('insightCards'),
 
           accountListContainer: document.getElementById('accountListContainer'),
           categoryListContainer: document.getElementById('categoryListContainer'),
@@ -494,6 +514,8 @@
           editingCategoryId: document.getElementById('editingCategoryId'),
           catNameInput: document.getElementById('catNameInput'),
           catTypeInput: document.getElementById('catTypeInput'),
+          catColorInput: document.getElementById('catColorInput'),
+          catBudgetInput: document.getElementById('catBudgetInput'),
 
           importModal: document.getElementById('importModal'),
           openImportModalBtn: document.getElementById('openImportModalBtn'),
@@ -755,11 +777,21 @@
         e.preventDefault();
         const name = this.dom.catNameInput.value.trim();
         const type = this.dom.catTypeInput.value;
+        const color = this.dom.catColorInput.value || '#4f46e5';
+        const monthlyBudget = Number(this.dom.catBudgetInput.value || 0);
         if (!name) return;
 
-        this.data.categories.push({ id: 'cat-' + Date.now(), name, type });
+        this.data.categories.push({
+          id: 'cat-' + Date.now(),
+          name,
+          type,
+          color,
+          monthlyBudget: monthlyBudget > 0 ? monthlyBudget : 0
+        });
         this.saveState();
         this.dom.catNameInput.value = '';
+        this.dom.catBudgetInput.value = '';
+        this.dom.catColorInput.value = '#4f46e5';
         this.renderCategoryList();
         this.renderAll();
       }
@@ -817,6 +849,7 @@
         this.renderAccounts();
         this.renderCategoryList();
         this.renderSplitLedgerSummary();
+        this.renderBudgetOverview();
         this.applyFilters();
       }
 
@@ -852,8 +885,15 @@
           const el = document.createElement('div');
           el.className = 'p-3 bg-white rounded-xl border border-slate-200 shadow-sm flex justify-between items-center text-xs';
           el.innerHTML = `
-            <span class="font-medium text-slate-700">${cat.name} <span class="text-[10px] text-slate-400">(${cat.type})</span></span>
-            <button onclick="window.app.deleteCategory('${cat.id}')" class="text-rose-500"><i class="fa-solid fa-trash"></i></button>
+            <div class="flex items-center gap-2">
+              <span class="inline-block w-3 h-3 rounded-full" style="background:${cat.color || '#4f46e5'}"></span>
+              <span class="font-medium text-slate-700">${cat.name}</span>
+              <span class="text-[10px] text-slate-400">(${cat.type})</span>
+            </div>
+            <div class="flex items-center gap-2">
+              ${cat.monthlyBudget ? `<span class="text-[10px] text-slate-500">Budget: ${this.formatCurrency(cat.monthlyBudget, this.data.baseCurrency)}</span>` : '<span class="text-[10px] text-slate-400">No budget</span>'}
+              <button onclick="window.app.deleteCategory('${cat.id}')" class="text-rose-500"><i class="fa-solid fa-trash"></i></button>
+            </div>
           `;
           container.appendChild(el);
         });
@@ -880,6 +920,125 @@
           `;
           container.appendChild(card);
         });
+      }
+
+      renderBudgetOverview() {
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+
+        const monthlyBudgetList = this.data.categories.filter(cat => cat.type === 'EXPENSE' && Number(cat.monthlyBudget || 0) > 0);
+        const budgetOverview = this.dom.budgetOverviewList;
+        budgetOverview.innerHTML = '';
+
+        let totalBudget = 0;
+        let totalSpent = 0;
+
+        monthlyBudgetList.forEach(cat => {
+          const spent = this.data.transactions
+            .filter(tx => tx.type === 'EXPENSE' && tx.categoryId === cat.id)
+            .reduce((sum, tx) => {
+              const txDate = new Date(tx.date);
+              if (txDate.getMonth() === monthStart.getMonth() && txDate.getFullYear() === monthStart.getFullYear()) {
+                return sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency);
+              }
+              return sum;
+            }, 0);
+
+          const effectiveBudget = Number(cat.monthlyBudget || 0);
+          totalBudget += effectiveBudget;
+          totalSpent += spent;
+
+          const percent = effectiveBudget > 0 ? Math.min((spent / effectiveBudget) * 100, 100) : 0;
+          const row = document.createElement('div');
+          row.className = 'space-y-1';
+          row.innerHTML = `
+            <div class="flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2">
+                <span class="inline-block w-2.5 h-2.5 rounded-full" style="background:${cat.color || '#4f46e5'}"></span>
+                <span class="font-medium text-slate-700">${cat.name}</span>
+              </div>
+              <span class="font-semibold ${spent > effectiveBudget ? 'text-rose-600' : 'text-slate-600'}">${this.formatCurrency(spent, this.data.baseCurrency)} / ${this.formatCurrency(effectiveBudget, this.data.baseCurrency)}</span>
+            </div>
+            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" style="width:${Math.max(Math.min(percent, 100), 0)}%; background:${cat.color || '#4f46e5'}"></div>
+            </div>
+          `;
+          budgetOverview.appendChild(row);
+        });
+
+        if (!monthlyBudgetList.length) {
+          budgetOverview.innerHTML = '<div class="text-xs text-slate-400 italic">No category budgets configured yet.</div>';
+        }
+
+        this.dom.budgetSummary.textContent = `${this.formatCurrency(totalSpent, this.data.baseCurrency)} / ${this.formatCurrency(totalBudget, this.data.baseCurrency)}`;
+
+        const topCategory = this.data.categories
+          .filter(cat => cat.type === 'EXPENSE')
+          .map(cat => ({
+            ...cat,
+            spent: this.data.transactions
+              .filter(tx => tx.type === 'EXPENSE' && tx.categoryId === cat.id)
+              .reduce((sum, tx) => {
+                const txDate = new Date(tx.date);
+                if (txDate.getMonth() === monthStart.getMonth() && txDate.getFullYear() === monthStart.getFullYear()) {
+                  return sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency);
+                }
+                return sum;
+              }, 0)
+          }))
+          .sort((a,b) => b.spent - a.spent)[0];
+
+        const largestTxn = [...this.data.transactions]
+          .filter(tx => tx.type === 'EXPENSE')
+          .sort((a,b) => this.convertCurrency(Number(b.amount), b.currency, this.data.baseCurrency) - this.convertCurrency(Number(a.amount), a.currency, this.data.baseCurrency))[0];
+
+        const insightList = [];
+        if (topCategory) {
+          insightList.push({
+            title: 'Top spend',
+            value: `${topCategory.name} • ${this.formatCurrency(topCategory.spent, this.data.baseCurrency)}`,
+            tone: 'indigo'
+          });
+        }
+        if (largestTxn) {
+          insightList.push({
+            title: 'Largest expense',
+            value: `${largestTxn.vendor || 'General'} • ${this.formatCurrency(this.convertCurrency(Number(largestTxn.amount), largestTxn.currency, this.data.baseCurrency), this.data.baseCurrency)}`,
+            tone: 'rose'
+          });
+        }
+        if (totalBudget > 0) {
+          const remaining = totalBudget - totalSpent;
+          insightList.push({
+            title: 'Remaining budget',
+            value: this.formatCurrency(remaining, this.data.baseCurrency),
+            tone: remaining >= 0 ? 'emerald' : 'amber'
+          });
+        }
+
+        if (!insightList.length) {
+          insightList.push({
+            title: 'Insights',
+            value: 'Add transactions to see smarter recommendations.',
+            tone: 'slate'
+          });
+        }
+
+        const toneClass = {
+          indigo: 'bg-indigo-50 text-indigo-700',
+          rose: 'bg-rose-50 text-rose-700',
+          emerald: 'bg-emerald-50 text-emerald-700',
+          amber: 'bg-amber-50 text-amber-700',
+          slate: 'bg-slate-100 text-slate-600'
+        };
+
+        this.dom.insightCards.innerHTML = insightList.map(item => `
+          <div class="p-3 rounded-xl border border-slate-200 bg-slate-50">
+            <div class="text-[10px] uppercase font-bold text-slate-400">${item.title}</div>
+            <div class="mt-1 text-sm font-semibold ${toneClass[item.tone] || 'text-slate-600'}">${item.value}</div>
+          </div>
+        `).join('');
       }
 
       applyFilters() {
@@ -950,15 +1109,17 @@
         const catMap = {};
         transactions.filter(t => t.type === 'EXPENSE').forEach(t => {
           const catName = this.data.categories.find(c => c.id === t.categoryId)?.name || 'Other';
+          const color = this.data.categories.find(c => c.id === t.categoryId)?.color || '#6366f1';
           catMap[catName] = (catMap[catName] || 0) + this.convertCurrency(t.amount, t.currency, this.data.baseCurrency);
         });
 
+        const palette = this.data.categories.filter(c => c.type === 'EXPENSE').map(c => c.color || '#6366f1');
         if (this.categoryChart) this.categoryChart.destroy();
         this.categoryChart = new Chart(document.getElementById('categoryChart'), {
           type: 'doughnut',
           data: {
             labels: Object.keys(catMap),
-            datasets: [{ data: Object.values(catMap), backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'] }]
+            datasets: [{ data: Object.values(catMap), backgroundColor: palette.length ? palette : ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'] }]
           },
           options: { responsive: true, maintainAspectRatio: false }
         });
