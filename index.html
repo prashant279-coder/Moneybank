@@ -373,7 +373,7 @@
     class TrackWisePro {
       constructor() {
         this.fxRates = { USD: 1.0, EUR: 0.92, GBP: 0.79, INR: 83.5, AED: 3.67 };
-        this.data = this.getDefaultAccountsData();
+        this.data = this.loadSavedState() || this.getDefaultAccountsData();
         this.categoryChart = null;
         this.trendChart = null;
 
@@ -383,35 +383,79 @@
         this.renderAll();
       }
 
+      loadSavedState() {
+        try {
+          const raw = localStorage.getItem('TRACKWISE_PRO_DATA');
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.accounts) && Array.isArray(parsed.transactions)) {
+            return parsed;
+          }
+        } catch (err) {
+          console.warn('Unable to load saved finance data:', err);
+        }
+        return null;
+      }
+
       getDefaultAccountsData() {
+        const isoDate = (offsetDays) => {
+          const d = new Date();
+          d.setDate(d.getDate() + offsetDays);
+          return d.toISOString().split('T')[0];
+        };
+
         return {
           baseCurrency: 'INR',
           accounts: [
-            { id: 'acc-icici-sav', name: 'ICICI Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: null },
-            { id: 'acc-hdfc-sav', name: 'HDFC Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: null },
-            { id: 'acc-sbi-sav', name: 'SBI Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: null },
+            { id: 'acc-icici-sav', name: 'ICICI Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 240000, currentBalance: 240000, parentId: null },
+            { id: 'acc-hdfc-sav', name: 'HDFC Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 98000, currentBalance: 98000, parentId: null },
+            { id: 'acc-sbi-sav', name: 'SBI Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 120000, currentBalance: 120000, parentId: null },
             { id: 'acc-icici-sap', name: 'ICICI Sapphiro Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-icici-sav' },
             { id: 'acc-icici-rupay', name: 'ICICI Rupay Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-icici-sav' },
             { id: 'acc-icici-amex', name: 'ICICI Amex Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-icici-sav' },
             { id: 'acc-hdfc-mill', name: 'HDFC Millenia Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-hdfc-sav' },
             { id: 'acc-bob-scapia', name: 'BOB Scapia Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: null },
             { id: 'acc-sbi-card', name: 'SBI Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-sbi-sav' },
-            { id: 'acc-cash-inr', name: 'Cash ( INR )', type: 'CASH', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: null },
-            { id: 'acc-cash-usd', name: 'Cash ( USD )', type: 'CASH', currency: 'USD', initialBalance: 0, currentBalance: 0, parentId: null }
+            { id: 'acc-cash-inr', name: 'Cash ( INR )', type: 'CASH', currency: 'INR', initialBalance: 25000, currentBalance: 25000, parentId: null },
+            { id: 'acc-cash-usd', name: 'Cash ( USD )', type: 'CASH', currency: 'USD', initialBalance: 300, currentBalance: 300, parentId: null }
           ],
           categories: [
             { id: 'cat-1', name: 'Travel', type: 'EXPENSE' },
             { id: 'cat-2', name: 'Food & Dining', type: 'EXPENSE' },
             { id: 'cat-3', name: 'Utilities', type: 'EXPENSE' },
-            { id: 'cat-4', name: 'Salary', type: 'INCOME' }
+            { id: 'cat-4', name: 'Salary', type: 'INCOME' },
+            { id: 'cat-5', name: 'Investment', type: 'EXPENSE' },
+            { id: 'cat-6', name: 'Freelance', type: 'INCOME' }
           ],
-          transactions: [],
+          transactions: [
+            { id: 'tx-demo-1', type: 'INCOME', date: isoDate(-12), amount: 180000, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-4', subcategory: 'Monthly Salary', vendor: 'Company Payroll', tags: ['#salary', '#payroll'], notes: 'Primary salary deposit', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-2', type: 'EXPENSE', date: isoDate(-9), amount: 6500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-2', subcategory: 'Lunch', vendor: 'Brew House', tags: ['#food'], notes: 'Team lunch', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-3', type: 'EXPENSE', date: isoDate(-7), amount: 13500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-sbi-card', categoryId: 'cat-1', subcategory: 'Flights', vendor: 'Indigo / Airline', tags: ['#travel', '#trip'], notes: 'Domestic flight booking', isSplit: true, splitPerson: 'Aman', splitAmount: 6750 },
+            { id: 'tx-demo-4', type: 'INCOME', date: isoDate(-6), amount: 18500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-hdfc-sav', categoryId: 'cat-6', subcategory: 'Consulting', vendor: 'Client A', tags: ['#freelance'], notes: 'Design retainer', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-5', type: 'EXPENSE', date: isoDate(-4), amount: 3200, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-cash-inr', categoryId: 'cat-3', subcategory: 'Power Bill', vendor: 'MSEB', tags: ['#utilities'], notes: 'Monthly utilities', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-6', type: 'EXPENSE', date: isoDate(-2), amount: 250, currency: 'USD', fxMarkup: 0, fxOverride: null, accountId: 'acc-cash-usd', categoryId: 'cat-5', subcategory: 'Mutual Fund', vendor: 'Vanguard', tags: ['#investing'], notes: 'Quarterly investment contribution', isSplit: false, splitPerson: null, splitAmount: 0 }
+          ],
           splitLedgers: []
         };
       }
 
       saveState() {
         localStorage.setItem('TRACKWISE_PRO_DATA', JSON.stringify(this.data));
+      }
+
+      convertCurrency(amount, fromCurrency, toCurrency = this.data.baseCurrency) {
+        const numeric = Number(amount) || 0;
+        const source = fromCurrency || this.data.baseCurrency;
+        const target = toCurrency || this.data.baseCurrency;
+
+        if (!this.fxRates[source] || !this.fxRates[target]) return numeric;
+        if (source === target) return numeric;
+
+        return (numeric * this.fxRates[target]) / this.fxRates[source];
+      }
+
+      formatCurrency(amount, currency = this.data.baseCurrency) {
+        return `${currency} ${Number(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       }
 
       initDOM() {
@@ -539,13 +583,13 @@
 
       recalculateAccountBalances() {
         this.data.accounts.forEach(acc => {
-          acc.currentBalance = parseFloat(acc.initialBalance);
+          acc.currentBalance = Number(acc.initialBalance) || 0;
         });
 
         this.data.transactions.forEach(tx => {
           const acc = this.data.accounts.find(a => a.id === tx.accountId);
           if (!acc) return;
-          const baseAmount = parseFloat(tx.amount);
+          const baseAmount = Number(tx.amount) || 0;
           if (tx.type === 'INCOME') acc.currentBalance += baseAmount;
           else acc.currentBalance -= baseAmount;
         });
@@ -583,6 +627,7 @@
           this.dom.editingTransactionId.value = '';
           this.dom.transactionForm.reset();
           this.dom.txDate.value = new Date().toISOString().split('T')[0];
+          this.dom.txCurrency.value = this.data.baseCurrency;
           this.dom.txIsSplit.checked = false;
           this.dom.splitSection.classList.add('hidden');
         }
@@ -634,12 +679,18 @@
         e.preventDefault();
         const editingId = this.dom.editingTransactionId.value;
         const rawTags = this.dom.txTags.value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        const amount = Number(this.dom.txAmount.value);
+
+        if (!this.dom.txAccount.value || !this.dom.txCategory.value || Number.isNaN(amount) || amount <= 0) {
+          alert('Please enter a valid amount, account, and category.');
+          return;
+        }
 
         const payload = {
           id: editingId || 'tx-' + Date.now(),
           type: this.dom.txType.value,
           date: this.dom.txDate.value,
-          amount: parseFloat(this.dom.txAmount.value),
+          amount,
           currency: this.dom.txCurrency.value,
           fxMarkup: this.dom.txFxMarkup.value ? parseFloat(this.dom.txFxMarkup.value) : 0,
           fxOverride: this.dom.txFxOverride.value ? parseFloat(this.dom.txFxOverride.value) : null,
@@ -651,7 +702,7 @@
           notes: this.dom.txNotes.value,
           isSplit: this.dom.txIsSplit.checked,
           splitPerson: this.dom.txIsSplit.checked ? this.dom.splitPerson.value : null,
-          splitAmount: this.dom.txIsSplit.checked ? parseFloat(this.dom.splitAmount.value) : 0
+          splitAmount: this.dom.txIsSplit.checked ? parseFloat(this.dom.splitAmount.value || 0) : 0
         };
 
         if (editingId) {
@@ -670,14 +721,21 @@
       handleAccountSubmit(e) {
         e.preventDefault();
         const editingId = this.dom.editingAccountId.value;
+        const balance = Number(document.getElementById('accBalance').value);
+
+        if (!document.getElementById('accName').value.trim() || Number.isNaN(balance)) {
+          alert('Please enter an account name and balance.');
+          return;
+        }
+
         const payload = {
           id: editingId || 'acc-' + Date.now(),
-          name: document.getElementById('accName').value,
+          name: document.getElementById('accName').value.trim(),
           type: document.getElementById('accType').value,
           currency: document.getElementById('accCurrency').value,
           parentId: document.getElementById('accParent').value || null,
-          initialBalance: parseFloat(document.getElementById('accBalance').value),
-          currentBalance: parseFloat(document.getElementById('accBalance').value)
+          initialBalance: balance,
+          currentBalance: balance
         };
 
         if (editingId) {
@@ -707,7 +765,7 @@
       }
 
       deleteTransaction(id) {
-        if (!confirm("Delete transaction?")) return;
+        if (!confirm('Delete transaction?')) return;
         this.data.transactions = this.data.transactions.filter(t => t.id !== id);
         this.recalculateAccountBalances();
         this.saveState();
@@ -715,7 +773,7 @@
       }
 
       deleteAccount(id) {
-        if (!confirm("Delete account?")) return;
+        if (!confirm('Delete account?')) return;
         this.data.accounts = this.data.accounts.filter(a => a.id !== id);
         this.recalculateAccountBalances();
         this.saveState();
@@ -723,7 +781,7 @@
       }
 
       deleteCategory(id) {
-        if (!confirm("Delete category?")) return;
+        if (!confirm('Delete category?')) return;
         this.data.categories = this.data.categories.filter(c => c.id !== id);
         this.saveState();
         this.renderCategoryList();
@@ -744,7 +802,10 @@
 
           const txDate = new Date(tx.date);
           if (dateRange === 'today') return txDate.toDateString() === now.toDateString();
-          if (dateRange === 'this_week') return (now - txDate) / (1000 * 60 * 60 * 24) <= 7;
+          if (dateRange === 'this_week') {
+            const diffDays = (now - txDate) / (1000 * 60 * 60 * 24);
+            return diffDays >= 0 && diffDays <= 7;
+          }
           if (dateRange === 'this_month') return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
 
           return true;
@@ -755,6 +816,7 @@
         this.populateDropdowns();
         this.renderAccounts();
         this.renderCategoryList();
+        this.renderSplitLedgerSummary();
         this.applyFilters();
       }
 
@@ -764,14 +826,15 @@
 
         this.data.accounts.forEach(acc => {
           const el = document.createElement('div');
-          el.className = "p-4 bg-white rounded-xl border border-slate-200 shadow-sm flex justify-between items-center";
+          const balanceDisplay = this.formatCurrency(this.convertCurrency(acc.currentBalance, acc.currency), this.data.baseCurrency);
+          el.className = 'p-4 bg-white rounded-xl border border-slate-200 shadow-sm flex justify-between items-center';
           el.innerHTML = `
             <div>
               <div class="font-bold text-sm text-slate-800">${acc.name}</div>
               <div class="text-[10px] text-slate-400 uppercase font-semibold">${acc.type} • ${acc.currency}</div>
             </div>
             <div class="text-right">
-              <div class="font-bold text-sm text-slate-700">${acc.currency} ${acc.currentBalance.toLocaleString()}</div>
+              <div class="font-bold text-sm text-slate-700">${balanceDisplay}</div>
               <div class="flex gap-2 justify-end mt-1">
                 <button onclick="window.app.openAccountModal('${acc.id}')" class="text-xs text-indigo-600 font-medium hover:underline"><i class="fa-solid fa-pen"></i> Edit</button>
                 <button onclick="window.app.deleteAccount('${acc.id}')" class="text-xs text-rose-500 font-medium hover:underline"><i class="fa-solid fa-trash"></i> Delete</button>
@@ -787,12 +850,35 @@
         container.innerHTML = '';
         this.data.categories.forEach(cat => {
           const el = document.createElement('div');
-          el.className = "p-3 bg-white rounded-xl border border-slate-200 shadow-sm flex justify-between items-center text-xs";
+          el.className = 'p-3 bg-white rounded-xl border border-slate-200 shadow-sm flex justify-between items-center text-xs';
           el.innerHTML = `
             <span class="font-medium text-slate-700">${cat.name} <span class="text-[10px] text-slate-400">(${cat.type})</span></span>
             <button onclick="window.app.deleteCategory('${cat.id}')" class="text-rose-500"><i class="fa-solid fa-trash"></i></button>
           `;
           container.appendChild(el);
+        });
+      }
+
+      renderSplitLedgerSummary() {
+        const container = this.dom.splitLedgerSummary;
+        container.innerHTML = '';
+
+        const splitTransactions = this.data.transactions.filter(tx => tx.isSplit && tx.splitPerson && Number(tx.splitAmount || 0) > 0);
+        if (splitTransactions.length === 0) {
+          container.innerHTML = '<div class="col-span-full p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">No split expenses yet.</div>';
+          return;
+        }
+
+        splitTransactions.forEach(tx => {
+          const card = document.createElement('div');
+          const owed = this.convertCurrency(Number(tx.splitAmount || 0), tx.currency, this.data.baseCurrency);
+          card.className = 'p-3 rounded-xl bg-white border border-slate-200 shadow-sm';
+          card.innerHTML = `
+            <div class="text-[10px] uppercase text-slate-400 font-semibold">${tx.splitPerson}</div>
+            <div class="mt-1 font-bold text-slate-700">${this.formatCurrency(owed, this.data.baseCurrency)}</div>
+            <div class="mt-1 text-[10px] text-slate-500">${tx.vendor || 'Shared expense'}</div>
+          `;
+          container.appendChild(card);
         });
       }
 
@@ -816,9 +902,10 @@
           const category = this.data.categories.find(c => c.id === tx.categoryId)?.name || 'General';
           const account = this.data.accounts.find(a => a.id === tx.accountId)?.name || 'Account';
           const isExpense = tx.type === 'EXPENSE';
+          const baseValue = this.convertCurrency(tx.amount, tx.currency, this.data.baseCurrency);
 
           const tr = document.createElement('tr');
-          tr.className = "hover:bg-slate-50 transition";
+          tr.className = 'hover:bg-slate-50 transition';
           tr.innerHTML = `
             <td class="p-3 font-medium">${tx.date}</td>
             <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${isExpense ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">${tx.type}</span></td>
@@ -826,7 +913,10 @@
             <td class="p-3">${tx.vendor || '-'}</td>
             <td class="p-3">${account}</td>
             <td class="p-3">${(tx.tags || []).map(t => `<span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded text-[10px] mr-1">${t}</span>`).join('')}</td>
-            <td class="p-3 text-right font-bold ${isExpense ? 'text-rose-600' : 'text-emerald-600'}">${isExpense ? '-' : '+'}${tx.currency} ${tx.amount.toLocaleString()}</td>
+            <td class="p-3 text-right font-bold ${isExpense ? 'text-rose-600' : 'text-emerald-600'}">
+              <div>${isExpense ? '-' : '+'}${this.formatCurrency(baseValue, this.data.baseCurrency)}</div>
+              <div class="text-[10px] text-slate-400">${tx.currency} ${Number(tx.amount).toLocaleString()}</div>
+            </td>
             <td class="p-3 text-center">
               <button onclick="window.app.openTransactionModal('${tx.id}')" class="text-indigo-600 mr-2"><i class="fa-solid fa-pen"></i></button>
               <button onclick="window.app.deleteTransaction('${tx.id}')" class="text-rose-500"><i class="fa-solid fa-trash"></i></button>
@@ -839,26 +929,28 @@
       renderSummaryCards(transactions) {
         let totalIncome = 0, totalExpense = 0;
         transactions.forEach(tx => {
-          const converted = tx.amount;
+          const converted = this.convertCurrency(tx.amount, tx.currency, this.data.baseCurrency);
           if (tx.type === 'INCOME') totalIncome += converted;
           else totalExpense += converted;
         });
 
         let totalLiquidity = 0;
-        this.data.accounts.forEach(a => totalLiquidity += a.currentBalance);
+        this.data.accounts.forEach(a => {
+          totalLiquidity += this.convertCurrency(a.currentBalance, a.currency, this.data.baseCurrency);
+        });
 
         const sym = this.data.baseCurrency;
-        this.dom.summaryLiquidity.textContent = `${sym} ${totalLiquidity.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-        this.dom.summaryIncome.textContent = `${sym} ${totalIncome.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-        this.dom.summaryExpense.textContent = `${sym} ${totalExpense.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-        this.dom.summaryNet.textContent = `${sym} ${(totalIncome - totalExpense).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+        this.dom.summaryLiquidity.textContent = `${sym} ${totalLiquidity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        this.dom.summaryIncome.textContent = `${sym} ${totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        this.dom.summaryExpense.textContent = `${sym} ${totalExpense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        this.dom.summaryNet.textContent = `${sym} ${(totalIncome - totalExpense).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       }
 
       renderCharts(transactions) {
         const catMap = {};
         transactions.filter(t => t.type === 'EXPENSE').forEach(t => {
           const catName = this.data.categories.find(c => c.id === t.categoryId)?.name || 'Other';
-          catMap[catName] = (catMap[catName] || 0) + t.amount;
+          catMap[catName] = (catMap[catName] || 0) + this.convertCurrency(t.amount, t.currency, this.data.baseCurrency);
         });
 
         if (this.categoryChart) this.categoryChart.destroy();
@@ -866,16 +958,17 @@
           type: 'doughnut',
           data: {
             labels: Object.keys(catMap),
-            datasets: [{ data: Object.values(catMap), backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'] }]
+            datasets: [{ data: Object.values(catMap), backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'] }]
           },
           options: { responsive: true, maintainAspectRatio: false }
         });
 
         const dateMap = {};
         transactions.forEach(t => {
+          const value = this.convertCurrency(t.amount, t.currency, this.data.baseCurrency);
           if (!dateMap[t.date]) dateMap[t.date] = { income: 0, expense: 0 };
-          if (t.type === 'INCOME') dateMap[t.date].income += t.amount;
-          else dateMap[t.date].expense += t.amount;
+          if (t.type === 'INCOME') dateMap[t.date].income += value;
+          else dateMap[t.date].expense += value;
         });
 
         const dates = Object.keys(dateMap).sort();
@@ -908,7 +1001,7 @@
 
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(wsData);
-        XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+        XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
         XLSX.writeFile(wb, `TrackWise_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
       }
 
@@ -922,7 +1015,7 @@
 
       processImport() {
         const file = this.dom.importFileInput.files[0];
-        if (!file) return alert("Select a file first.");
+        if (!file) return alert('Select a file first.');
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -942,7 +1035,10 @@
               categoryId: this.data.categories[0]?.id || 'cat-1',
               vendor: r.Vendor || '',
               notes: r.Notes || '',
-              tags: r.Tags ? String(r.Tags).split(',') : []
+              tags: r.Tags ? String(r.Tags).split(',') : [],
+              isSplit: false,
+              splitPerson: null,
+              splitAmount: 0
             });
           });
 
