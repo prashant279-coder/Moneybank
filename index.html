@@ -5,16 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TrackWise Pro - Finance & Expense Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.1.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { font-family: sans-serif; }
-    .tab-content.hidden { display: none; }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .hidden { display: none !important; }
+    .bg-slate-900\/50 { background-color: rgba(15, 23, 42, 0.5); }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen">
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
   <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
       <div class="flex items-center space-x-3">
@@ -50,28 +54,51 @@
   </header>
 
   <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Liquidity</span>
+        <div id="summaryLiquidity" class="text-lg md:text-xl font-extrabold text-slate-800 mt-0.5">₹0.00</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtered Income</span>
+        <div id="summaryIncome" class="text-lg md:text-xl font-extrabold text-emerald-600 mt-0.5">₹0.00</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtered Expenses</span>
+        <div id="summaryExpense" class="text-lg md:text-xl font-extrabold text-rose-600 mt-0.5">₹0.00</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Net Savings Flow</span>
+        <div id="summaryNet" class="text-lg md:text-xl font-extrabold text-indigo-600 mt-0.5">₹0.00</div>
+      </div>
+    </div>
+
     <div id="tab-dashboard" class="tab-content space-y-6">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Liquidity</span>
-          <div id="summaryLiquidity" class="text-lg md:text-xl font-extrabold text-slate-800 mt-0.5">₹0.00</div>
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="text-xs font-bold text-slate-500 uppercase mb-2">Category Spending Breakdown</h3>
+          <div class="relative h-64"><canvas id="categoryChart"></canvas></div>
         </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtered Income</span>
-          <div id="summaryIncome" class="text-lg md:text-xl font-extrabold text-emerald-600 mt-0.5">₹0.00</div>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtered Expenses</span>
-          <div id="summaryExpense" class="text-lg md:text-xl font-extrabold text-rose-600 mt-0.5">₹0.00</div>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Net Savings Flow</span>
-          <div id="summaryNet" class="text-lg md:text-xl font-extrabold text-indigo-600 mt-0.5">₹0.00</div>
+        <div>
+          <h3 class="text-xs font-bold text-slate-500 uppercase mb-2">Daily Income vs Expense Trend</h3>
+          <div class="relative h-64"><canvas id="trendChart"></canvas></div>
         </div>
       </div>
-      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-        <h3 class="text-xs font-bold text-slate-500 uppercase mb-2">Finance Summary</h3>
-        <p class="text-sm text-slate-600">Your dashboard is live and updates automatically as you add, edit, and delete accounts, categories, and transactions.</p>
+
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xs font-bold text-slate-500 uppercase">Monthly Budget Tracker</h3>
+            <span id="budgetSummary" class="text-xs font-semibold text-slate-500">₹0 / ₹0</span>
+          </div>
+          <div id="budgetOverviewList" class="space-y-3"></div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-xs font-bold text-slate-500 uppercase mb-4">Smart Insights</h3>
+          <div id="insightCards" class="space-y-3"></div>
+        </div>
       </div>
     </div>
 
@@ -105,9 +132,12 @@
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="p-4 border-b border-slate-100 flex justify-between items-center">
           <h2 class="font-bold text-slate-700 text-sm uppercase">Transactions Ledger</h2>
-          <div class="flex gap-2">
-            <button id="exportExcelBtn" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1.5 rounded transition flex items-center gap-1">
-              <i class="fa-solid fa-file-excel"></i> Export Excel (.xlsx)
+          <div class="flex gap-2 flex-wrap">
+            <button id="exportCsvBtn" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1.5 rounded transition flex items-center gap-1">
+              <i class="fa-solid fa-file-csv"></i> Export CSV
+            </button>
+            <button id="exportPdfBtn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded transition">
+              <i class="fa-solid fa-file-pdf"></i> Export PDF
             </button>
             <button id="exportJsonBtn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded transition">
               <i class="fa-solid fa-download"></i> Backup JSON
@@ -166,6 +196,7 @@
         <div id="splitLedgerSummary" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs"></div>
       </div>
     </div>
+
   </main>
 
   <div id="transactionModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
@@ -177,6 +208,7 @@
 
       <form id="transactionForm" class="space-y-4 text-xs">
         <input type="hidden" id="editingTransactionId" value="" />
+
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-slate-600 mb-1 font-medium">Type</label>
@@ -186,17 +218,24 @@
             </select>
           </div>
           <div>
+            <label class="block text-slate-600 mb-1 font-medium">Amount</label>
+            <input type="number" step="0.01" id="txAmount" placeholder="0.00" class="w-full border rounded-lg p-2 focus:outline-none" required />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
             <label class="block text-slate-600 mb-1 font-medium">Date</label>
             <input type="date" id="txDate" class="w-full border rounded-lg p-2 focus:outline-none" required />
+          </div>
+          <div>
+            <label class="block text-slate-600 mb-1 font-medium">Time</label>
+            <input type="time" id="txTime" class="w-full border rounded-lg p-2 focus:outline-none" />
           </div>
         </div>
 
         <div class="grid grid-cols-3 gap-3">
           <div class="col-span-2">
-            <label class="block text-slate-600 mb-1 font-medium">Amount</label>
-            <input type="number" step="0.01" id="txAmount" placeholder="0.00" class="w-full border rounded-lg p-2 focus:outline-none" required />
-          </div>
-          <div>
             <label class="block text-slate-600 mb-1 font-medium">Currency</label>
             <select id="txCurrency" class="w-full border rounded-lg p-2 focus:outline-none">
               <option value="INR">INR (₹)</option>
@@ -205,6 +244,10 @@
               <option value="GBP">GBP (£)</option>
               <option value="AED">AED</option>
             </select>
+          </div>
+          <div>
+            <label class="block text-slate-600 mb-1 font-medium">FX %</label>
+            <input type="number" step="0.01" id="txFxMarkup" placeholder="2.5" class="w-full border rounded-lg p-2 focus:outline-none" />
           </div>
         </div>
 
@@ -232,6 +275,70 @@
         <div>
           <label class="block text-slate-600 mb-1 font-medium">Tags (comma separated)</label>
           <input type="text" id="txTags" placeholder="#ItalyTrip, #Reimbursable" class="w-full border rounded-lg p-2 focus:outline-none" />
+        </div>
+
+        <div id="quickAccountCreate" class="hidden border border-indigo-200 bg-indigo-50 p-3 rounded-lg">
+          <div class="font-semibold text-indigo-700 mb-2">Create New Account</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <input type="text" id="quickAccName" placeholder="Account name" class="border rounded p-2 w-full" />
+            <select id="quickAccType" class="border rounded p-2 w-full">
+              <option value="BANK">Bank</option>
+              <option value="CREDIT_CARD">Credit Card</option>
+              <option value="UPI">UPI</option>
+              <option value="CASH">Cash</option>
+            </select>
+            <select id="quickAccCurrency" class="border rounded p-2 w-full">
+              <option value="INR">INR</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="AED">AED</option>
+            </select>
+            <input type="number" step="0.01" id="quickAccBalance" placeholder="Opening balance" class="border rounded p-2 w-full" />
+          </div>
+          <div class="mt-2 flex justify-end gap-2">
+            <button type="button" id="cancelQuickAccBtn" class="px-2 py-1 text-slate-500 text-xs">Cancel</button>
+            <button type="button" id="saveQuickAccBtn" class="px-2 py-1 bg-indigo-600 text-white rounded text-xs">Save Account</button>
+          </div>
+        </div>
+
+        <div id="quickCategoryCreate" class="hidden border border-emerald-200 bg-emerald-50 p-3 rounded-lg">
+          <div class="font-semibold text-emerald-700 mb-2">Create New Category</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <input type="text" id="quickCatName" placeholder="Category name" class="border rounded p-2 w-full" />
+            <select id="quickCatType" class="border rounded p-2 w-full">
+              <option value="EXPENSE">Expense</option>
+              <option value="INCOME">Income</option>
+            </select>
+            <input type="color" id="quickCatColor" value="#4f46e5" class="border rounded p-2 w-full h-10" />
+            <input type="number" id="quickCatBudget" placeholder="Budget" class="border rounded p-2 w-full" />
+          </div>
+          <div class="mt-2 flex justify-end gap-2">
+            <button type="button" id="cancelQuickCatBtn" class="px-2 py-1 text-slate-500 text-xs">Cancel</button>
+            <button type="button" id="saveQuickCatBtn" class="px-2 py-1 bg-emerald-600 text-white rounded text-xs">Save Category</button>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-100 pt-3">
+          <label class="flex items-center gap-2 cursor-pointer mb-2">
+            <input type="checkbox" id="txIsSplit" class="rounded text-indigo-600" />
+            <span class="font-medium text-slate-700">Split Expense with Someone</span>
+          </label>
+          <div id="splitSection" class="hidden grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg">
+            <div>
+              <label class="block text-slate-500 mb-1">Person Name</label>
+              <input type="text" id="splitPerson" placeholder="John" class="w-full border rounded p-1.5" />
+            </div>
+            <div>
+              <label class="block text-slate-500 mb-1 font-medium">Amount Owed</label>
+              <input type="number" step="0.01" id="splitAmount" placeholder="0.00" class="w-full border rounded p-1.5" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-600 mb-1 font-medium">Notes</label>
+          <textarea id="txNotes" rows="2" placeholder="Details..." class="w-full border rounded-lg p-2 focus:outline-none"></textarea>
         </div>
 
         <div class="flex justify-end gap-2 border-t border-slate-100 pt-3">
@@ -301,13 +408,25 @@
   <div id="importModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 text-xs">
       <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-        <h3 class="font-bold text-slate-800 text-base">Bulk Import Excel / CSV</h3>
+        <h3 class="font-bold text-slate-800 text-base">Import Data</h3>
         <button id="closeImportModalBtn" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
       <div class="space-y-4">
         <div>
+          <label class="block text-slate-600 mb-1 font-medium">Import type</label>
+          <select id="importType" class="w-full border rounded-lg p-2 focus:outline-none">
+            <option value="transactions">Transactions</option>
+            <option value="accounts">Accounts</option>
+          </select>
+        </div>
+        <div>
           <label class="block text-slate-600 mb-1 font-medium">Select Excel (.xlsx) or CSV file</label>
           <input type="file" id="importFileInput" accept=".xlsx, .xls, .csv" class="w-full border rounded-lg p-2" />
+        </div>
+        <div class="text-[11px] text-slate-500">
+          Import format example:<br>
+          Accounts: name,type,currency,balance<br>
+          Transactions: date,time,type,amount,currency,account,category,vendor,tags,notes
         </div>
         <div class="flex justify-end gap-2 border-t border-slate-100 pt-3">
           <button type="button" id="cancelImportBtn" class="px-4 py-2 text-slate-500 font-medium">Cancel</button>
@@ -321,43 +440,14 @@
     class TrackWisePro {
       constructor() {
         this.fxRates = { USD: 1.0, EUR: 0.92, GBP: 0.79, INR: 83.5, AED: 3.67 };
-        this.data = this.loadSavedState() || this.getDefaultData();
+        this.data = this.loadSavedState() || this.getDefaultAccountsData();
+        this.categoryChart = null;
+        this.trendChart = null;
+
         this.initDOM();
         this.initEvents();
         this.recalculateAccountBalances();
         this.renderAll();
-      }
-
-      getDefaultData() {
-        const iso = (offset) => {
-          const d = new Date();
-          d.setDate(d.getDate() + offset);
-          return d.toISOString().split('T')[0];
-        };
-
-        return {
-          baseCurrency: 'INR',
-          accounts: [
-            { id: 'acc-icici-sav', name: 'ICICI Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 240000, currentBalance: 240000, parentId: null },
-            { id: 'acc-hdfc-sav', name: 'HDFC Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 98000, currentBalance: 98000, parentId: null },
-            { id: 'acc-sbi-sav', name: 'SBI Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 120000, currentBalance: 120000, parentId: null },
-            { id: 'acc-icici-sap', name: 'ICICI Sapphiro Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-icici-sav' },
-            { id: 'acc-cash-inr', name: 'Cash ( INR )', type: 'CASH', currency: 'INR', initialBalance: 25000, currentBalance: 25000, parentId: null }
-          ],
-          categories: [
-            { id: 'cat-1', name: 'Travel', type: 'EXPENSE', color: '#6366f1', monthlyBudget: 20000 },
-            { id: 'cat-2', name: 'Food & Dining', type: 'EXPENSE', color: '#f59e0b', monthlyBudget: 12000 },
-            { id: 'cat-3', name: 'Utilities', type: 'EXPENSE', color: '#10b981', monthlyBudget: 8000 },
-            { id: 'cat-4', name: 'Salary', type: 'INCOME', color: '#22c55e', monthlyBudget: 0 },
-            { id: 'cat-5', name: 'Investment', type: 'EXPENSE', color: '#8b5cf6', monthlyBudget: 10000 }
-          ],
-          transactions: [
-            { id: 'tx-demo-1', type: 'INCOME', date: iso(-12), amount: 180000, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-4', subcategory: 'Salary', vendor: 'Company', tags: ['salary'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
-            { id: 'tx-demo-2', type: 'EXPENSE', date: iso(-9), amount: 6500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-2', subcategory: 'Lunch', vendor: 'Restaurant', tags: ['food'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
-            { id: 'tx-demo-3', type: 'EXPENSE', date: iso(-7), amount: 13500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-1', subcategory: 'Flight', vendor: 'Airline', tags: ['travel'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 }
-          ],
-          splitLedgers: []
-        };
       }
 
       loadSavedState() {
@@ -374,6 +464,48 @@
         return null;
       }
 
+      getDefaultAccountsData() {
+        const isoDate = (offsetDays) => {
+          const d = new Date();
+          d.setDate(d.getDate() + offsetDays);
+          return d.toISOString().split('T')[0];
+        };
+
+        return {
+          baseCurrency: 'INR',
+          accounts: [
+            { id: 'acc-icici-sav', name: 'ICICI Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 240000, currentBalance: 240000, parentId: null },
+            { id: 'acc-hdfc-sav', name: 'HDFC Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 98000, currentBalance: 98000, parentId: null },
+            { id: 'acc-sbi-sav', name: 'SBI Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 120000, currentBalance: 120000, parentId: null },
+            { id: 'acc-icici-sap', name: 'ICICI Sapphiro Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-icici-sav' },
+            { id: 'acc-icici-rupay', name: 'ICICI Rupay Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-icici-sav' },
+            { id: 'acc-icici-amex', name: 'ICICI Amex Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-icici-sav' },
+            { id: 'acc-hdfc-mill', name: 'HDFC Millenia Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-hdfc-sav' },
+            { id: 'acc-bob-scapia', name: 'BOB Scapia Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: null },
+            { id: 'acc-sbi-card', name: 'SBI Credit Card', type: 'CREDIT_CARD', currency: 'INR', initialBalance: 0, currentBalance: 0, parentId: 'acc-sbi-sav' },
+            { id: 'acc-cash-inr', name: 'Cash ( INR )', type: 'CASH', currency: 'INR', initialBalance: 25000, currentBalance: 25000, parentId: null },
+            { id: 'acc-cash-usd', name: 'Cash ( USD )', type: 'CASH', currency: 'USD', initialBalance: 300, currentBalance: 300, parentId: null }
+          ],
+          categories: [
+            { id: 'cat-1', name: 'Travel', type: 'EXPENSE', color: '#6366f1', monthlyBudget: 20000 },
+            { id: 'cat-2', name: 'Food & Dining', type: 'EXPENSE', color: '#f59e0b', monthlyBudget: 12000 },
+            { id: 'cat-3', name: 'Utilities', type: 'EXPENSE', color: '#10b981', monthlyBudget: 8000 },
+            { id: 'cat-4', name: 'Salary', type: 'INCOME', color: '#22c55e', monthlyBudget: 0 },
+            { id: 'cat-5', name: 'Investment', type: 'EXPENSE', color: '#8b5cf6', monthlyBudget: 10000 },
+            { id: 'cat-6', name: 'Freelance', type: 'INCOME', color: '#06b6d4', monthlyBudget: 0 }
+          ],
+          transactions: [
+            { id: 'tx-demo-1', type: 'INCOME', date: isoDate(-12), time: '09:30', amount: 180000, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-4', subcategory: 'Monthly Salary', vendor: 'Company', tags: ['salary'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-2', type: 'EXPENSE', date: isoDate(-9), time: '13:15', amount: 6500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-2', subcategory: 'Lunch', vendor: 'Restaurant', tags: ['food'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-3', type: 'EXPENSE', date: isoDate(-7), time: '18:45', amount: 13500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-sbi-card', categoryId: 'cat-1', subcategory: 'Flight', vendor: 'Airline', tags: ['travel'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-4', type: 'INCOME', date: isoDate(-6), time: '10:10', amount: 18500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-hdfc-sav', categoryId: 'cat-6', subcategory: 'Consulting', vendor: 'Client', tags: ['freelance'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-5', type: 'EXPENSE', date: isoDate(-4), time: '08:05', amount: 3200, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-cash-inr', categoryId: 'cat-3', subcategory: 'Power Bill', vendor: 'Electricity Board', tags: ['bill'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-6', type: 'EXPENSE', date: isoDate(-2), time: '12:00', amount: 250, currency: 'USD', fxMarkup: 0, fxOverride: null, accountId: 'acc-cash-usd', categoryId: 'cat-5', subcategory: 'Mutual Fund', vendor: 'Broker', tags: ['investment'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 }
+          ],
+          splitLedgers: []
+        };
+      }
+
       saveState() {
         localStorage.setItem('TRACKWISE_PRO_DATA', JSON.stringify(this.data));
       }
@@ -382,8 +514,10 @@
         const numeric = Number(amount) || 0;
         const source = fromCurrency || this.data.baseCurrency;
         const target = toCurrency || this.data.baseCurrency;
+
         if (!this.fxRates[source] || !this.fxRates[target]) return numeric;
         if (source === target) return numeric;
+
         return (numeric * this.fxRates[target]) / this.fxRates[source];
       }
 
@@ -398,20 +532,59 @@
           summaryIncome: document.getElementById('summaryIncome'),
           summaryExpense: document.getElementById('summaryExpense'),
           summaryNet: document.getElementById('summaryNet'),
+          budgetOverviewList: document.getElementById('budgetOverviewList'),
+          budgetSummary: document.getElementById('budgetSummary'),
+          insightCards: document.getElementById('insightCards'),
+
           accountListContainer: document.getElementById('accountListContainer'),
           categoryListContainer: document.getElementById('categoryListContainer'),
           splitLedgerSummary: document.getElementById('splitLedgerSummary'),
           transactionTableBody: document.getElementById('transactionTableBody'),
+
           filterDateRange: document.getElementById('filterDateRange'),
           filterCategory: document.getElementById('filterCategory'),
           filterAccount: document.getElementById('filterAccount'),
           filterTag: document.getElementById('filterTag'),
+
           transactionModal: document.getElementById('transactionModal'),
           openTransactionModalBtn: document.getElementById('openTransactionModalBtn'),
           closeTransactionModalBtn: document.getElementById('closeTransactionModalBtn'),
           cancelTransactionBtn: document.getElementById('cancelTransactionBtn'),
           transactionForm: document.getElementById('transactionForm'),
           editingTransactionId: document.getElementById('editingTransactionId'),
+          txType: document.getElementById('txType'),
+          txDate: document.getElementById('txDate'),
+          txTime: document.getElementById('txTime'),
+          txAmount: document.getElementById('txAmount'),
+          txCurrency: document.getElementById('txCurrency'),
+          txFxMarkup: document.getElementById('txFxMarkup'),
+          txAccount: document.getElementById('txAccount'),
+          txCategory: document.getElementById('txCategory'),
+          txSubcategory: document.getElementById('txSubcategory'),
+          txVendor: document.getElementById('txVendor'),
+          txTags: document.getElementById('txTags'),
+          txNotes: document.getElementById('txNotes'),
+          txIsSplit: document.getElementById('txIsSplit'),
+          splitSection: document.getElementById('splitSection'),
+          splitPerson: document.getElementById('splitPerson'),
+          splitAmount: document.getElementById('splitAmount'),
+
+          quickAccountCreate: document.getElementById('quickAccountCreate'),
+          quickAccName: document.getElementById('quickAccName'),
+          quickAccType: document.getElementById('quickAccType'),
+          quickAccCurrency: document.getElementById('quickAccCurrency'),
+          quickAccBalance: document.getElementById('quickAccBalance'),
+          saveQuickAccBtn: document.getElementById('saveQuickAccBtn'),
+          cancelQuickAccBtn: document.getElementById('cancelQuickAccBtn'),
+
+          quickCategoryCreate: document.getElementById('quickCategoryCreate'),
+          quickCatName: document.getElementById('quickCatName'),
+          quickCatType: document.getElementById('quickCatType'),
+          quickCatColor: document.getElementById('quickCatColor'),
+          quickCatBudget: document.getElementById('quickCatBudget'),
+          saveQuickCatBtn: document.getElementById('saveQuickCatBtn'),
+          cancelQuickCatBtn: document.getElementById('cancelQuickCatBtn'),
+
           accountModal: document.getElementById('accountModal'),
           tabOpenAccountBtn: document.getElementById('tabOpenAccountBtn'),
           closeAccountModalBtn: document.getElementById('closeAccountModalBtn'),
@@ -423,6 +596,7 @@
           accCurrency: document.getElementById('accCurrency'),
           accParent: document.getElementById('accParent'),
           accBalance: document.getElementById('accBalance'),
+
           categoryForm: document.getElementById('categoryForm'),
           editingCategoryId: document.getElementById('editingCategoryId'),
           catNameInput: document.getElementById('catNameInput'),
@@ -430,33 +604,23 @@
           catColorInput: document.getElementById('catColorInput'),
           catBudgetInput: document.getElementById('catBudgetInput'),
           saveCatBtn: document.getElementById('saveCatBtn'),
-          txType: document.getElementById('txType'),
-          txDate: document.getElementById('txDate'),
-          txAmount: document.getElementById('txAmount'),
-          txCurrency: document.getElementById('txCurrency'),
-          txAccount: document.getElementById('txAccount'),
-          txCategory: document.getElementById('txCategory'),
-          txSubcategory: document.getElementById('txSubcategory'),
-          txVendor: document.getElementById('txVendor'),
-          txTags: document.getElementById('txTags'),
-          txNotes: document.getElementById('txNotes'),
-          txIsSplit: document.getElementById('txIsSplit'),
-          splitSection: document.getElementById('splitSection'),
-          splitPerson: document.getElementById('splitPerson'),
-          splitAmount: document.getElementById('splitAmount'),
+
           importModal: document.getElementById('importModal'),
           openImportModalBtn: document.getElementById('openImportModalBtn'),
           closeImportModalBtn: document.getElementById('closeImportModalBtn'),
           cancelImportBtn: document.getElementById('cancelImportBtn'),
           importFileInput: document.getElementById('importFileInput'),
+          importType: document.getElementById('importType'),
           processImportBtn: document.getElementById('processImportBtn'),
-          exportExcelBtn: document.getElementById('exportExcelBtn'),
+
+          exportCsvBtn: document.getElementById('exportCsvBtn'),
+          exportPdfBtn: document.getElementById('exportPdfBtn'),
           exportJsonBtn: document.getElementById('exportJsonBtn')
         };
 
-        if (this.dom.txNotes) this.dom.txNotes = document.getElementById('txNotes');
         this.dom.baseCurrencySelect.value = this.data.baseCurrency;
         this.dom.txDate.value = new Date().toISOString().split('T')[0];
+        this.dom.txTime.value = new Date().toTimeString().slice(0, 5);
       }
 
       initEvents() {
@@ -495,6 +659,18 @@
         this.dom.closeImportModalBtn.addEventListener('click', () => this.dom.importModal.classList.add('hidden'));
         this.dom.cancelImportBtn.addEventListener('click', () => this.dom.importModal.classList.add('hidden'));
 
+        this.dom.txIsSplit.addEventListener('change', (e) => {
+          this.dom.splitSection.classList.toggle('hidden', !e.target.checked);
+        });
+
+        this.dom.txAccount.addEventListener('change', () => this.handleQuickCreateSelect('account'));
+        this.dom.txCategory.addEventListener('change', () => this.handleQuickCreateSelect('category'));
+
+        this.dom.saveQuickAccBtn.addEventListener('click', () => this.saveQuickAccount());
+        this.dom.cancelQuickAccBtn.addEventListener('click', () => this.hideQuickCreate('account'));
+        this.dom.saveQuickCatBtn.addEventListener('click', () => this.saveQuickCategory());
+        this.dom.cancelQuickCatBtn.addEventListener('click', () => this.hideQuickCreate('category'));
+
         this.dom.transactionForm.addEventListener('submit', (e) => this.handleTransactionSubmit(e));
         this.dom.accountForm.addEventListener('submit', (e) => this.handleAccountSubmit(e));
         this.dom.categoryForm.addEventListener('submit', (e) => this.handleCategorySubmit(e));
@@ -504,7 +680,8 @@
         });
         this.dom.filterTag.addEventListener('input', () => this.applyFilters());
 
-        this.dom.exportExcelBtn.addEventListener('click', () => this.exportExcel());
+        this.dom.exportCsvBtn.addEventListener('click', () => this.exportCSV());
+        this.dom.exportPdfBtn.addEventListener('click', () => this.exportPDF());
         this.dom.exportJsonBtn.addEventListener('click', () => this.exportJSON());
         this.dom.processImportBtn.addEventListener('click', () => this.processImport());
       }
@@ -523,6 +700,93 @@
         });
       }
 
+      handleQuickCreateSelect(type) {
+        const value = type === 'account' ? this.dom.txAccount.value : this.dom.txCategory.value;
+        if (type === 'account' && value === '__new_account__') {
+          this.dom.quickAccountCreate.classList.remove('hidden');
+          this.dom.quickCategoryCreate.classList.add('hidden');
+          this.dom.txAccount.value = '';
+        }
+        if (type === 'category' && value === '__new_category__') {
+          this.dom.quickCategoryCreate.classList.remove('hidden');
+          this.dom.quickAccountCreate.classList.add('hidden');
+          this.dom.txCategory.value = '';
+        }
+      }
+
+      hideQuickCreate(type) {
+        if (type === 'account') {
+          this.dom.quickAccountCreate.classList.add('hidden');
+          this.dom.txAccount.value = '';
+          this.populateDropdowns();
+        }
+        if (type === 'category') {
+          this.dom.quickCategoryCreate.classList.add('hidden');
+          this.dom.txCategory.value = '';
+          this.populateDropdowns();
+        }
+      }
+
+      saveQuickAccount() {
+        const name = this.dom.quickAccName.value.trim();
+        const type = this.dom.quickAccType.value;
+        const currency = this.dom.quickAccCurrency.value;
+        const balance = Number(this.dom.quickAccBalance.value || 0);
+
+        if (!name) {
+          alert('Enter account name.');
+          return;
+        }
+
+        const account = {
+          id: 'acc-' + Date.now(),
+          name,
+          type,
+          currency,
+          parentId: null,
+          initialBalance: balance,
+          currentBalance: balance
+        };
+
+        this.data.accounts.push(account);
+        this.saveState();
+        this.populateDropdowns();
+        this.dom.txAccount.value = account.id;
+        this.dom.quickAccName.value = '';
+        this.dom.quickAccBalance.value = '';
+        this.dom.quickAccountCreate.classList.add('hidden');
+        this.renderAll();
+      }
+
+      saveQuickCategory() {
+        const name = this.dom.quickCatName.value.trim();
+        const type = this.dom.quickCatType.value;
+        const color = this.dom.quickCatColor.value || '#4f46e5';
+        const monthlyBudget = Number(this.dom.quickCatBudget.value || 0);
+
+        if (!name) {
+          alert('Enter category name.');
+          return;
+        }
+
+        const category = {
+          id: 'cat-' + Date.now(),
+          name,
+          type,
+          color,
+          monthlyBudget: monthlyBudget > 0 ? monthlyBudget : 0
+        };
+
+        this.data.categories.push(category);
+        this.saveState();
+        this.populateDropdowns();
+        this.dom.txCategory.value = category.id;
+        this.dom.quickCatName.value = '';
+        this.dom.quickCatBudget.value = '';
+        this.dom.quickCategoryCreate.classList.add('hidden');
+        this.renderAll();
+      }
+
       openTransactionModal(editingId = null) {
         this.populateDropdowns();
 
@@ -532,27 +796,35 @@
           this.dom.editingTransactionId.value = tx.id;
           this.dom.txType.value = tx.type;
           this.dom.txDate.value = tx.date;
+          this.dom.txTime.value = tx.time || '09:00';
           this.dom.txAmount.value = tx.amount;
           this.dom.txCurrency.value = tx.currency;
+          this.dom.txFxMarkup.value = tx.fxMarkup || '';
           this.dom.txAccount.value = tx.accountId;
           this.dom.txCategory.value = tx.categoryId;
           this.dom.txSubcategory.value = tx.subcategory || '';
           this.dom.txVendor.value = tx.vendor || '';
           this.dom.txTags.value = tx.tags ? tx.tags.join(', ') : '';
           this.dom.txNotes.value = tx.notes || '';
-          if (this.dom.txIsSplit) {
-            this.dom.txIsSplit.checked = !!tx.isSplit;
-            if (this.dom.splitSection) this.dom.splitSection.classList.toggle('hidden', !tx.isSplit);
-            if (this.dom.splitPerson) this.dom.splitPerson.value = tx.splitPerson || '';
-            if (this.dom.splitAmount) this.dom.splitAmount.value = tx.splitAmount || '';
+          if (tx.isSplit) {
+            this.dom.txIsSplit.checked = true;
+            this.dom.splitSection.classList.remove('hidden');
+            this.dom.splitPerson.value = tx.splitPerson || '';
+            this.dom.splitAmount.value = tx.splitAmount || '';
+          } else {
+            this.dom.txIsSplit.checked = false;
+            this.dom.splitSection.classList.add('hidden');
           }
         } else {
           this.dom.editingTransactionId.value = '';
           this.dom.transactionForm.reset();
           this.dom.txDate.value = new Date().toISOString().split('T')[0];
+          this.dom.txTime.value = new Date().toTimeString().slice(0, 5);
           this.dom.txCurrency.value = this.data.baseCurrency;
-          if (this.dom.txIsSplit) this.dom.txIsSplit.checked = false;
-          if (this.dom.splitSection) this.dom.splitSection.classList.add('hidden');
+          this.dom.txIsSplit.checked = false;
+          this.dom.splitSection.classList.add('hidden');
+          this.dom.quickAccountCreate.classList.add('hidden');
+          this.dom.quickCategoryCreate.classList.add('hidden');
         }
 
         this.dom.transactionModal.classList.remove('hidden');
@@ -560,23 +832,25 @@
 
       closeTransactionModal() {
         this.dom.transactionModal.classList.add('hidden');
+        this.dom.quickAccountCreate.classList.add('hidden');
+        this.dom.quickCategoryCreate.classList.add('hidden');
       }
 
       openAccountModal(editingId = null) {
-        this.dom.editingAccountId.value = editingId || '';
         this.populateParentAccountOptions();
 
         if (editingId) {
           const acc = this.data.accounts.find(a => a.id === editingId);
           if (!acc) return;
+          this.dom.editingAccountId.value = acc.id;
           this.dom.accName.value = acc.name;
           this.dom.accType.value = acc.type;
           this.dom.accCurrency.value = acc.currency;
           this.dom.accParent.value = acc.parentId || '';
           this.dom.accBalance.value = acc.initialBalance;
         } else {
+          this.dom.editingAccountId.value = '';
           this.dom.accountForm.reset();
-          this.dom.accCurrency.value = this.data.baseCurrency;
         }
 
         this.dom.accountModal.classList.remove('hidden');
@@ -587,8 +861,11 @@
       }
 
       populateDropdowns() {
-        this.dom.txAccount.innerHTML = this.data.accounts.map(a => `<option value="${a.id}">${a.name} (${a.currency})</option>`).join('');
-        this.dom.txCategory.innerHTML = this.data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        const accountOptions = this.data.accounts.map(a => `<option value="${a.id}">${a.name} (${a.currency})</option>`).join('');
+        const categoryOptions = this.data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+        this.dom.txAccount.innerHTML = `<option value="">Select Account</option><option value="__new_account__">+ Create New Account</option>${accountOptions}`;
+        this.dom.txCategory.innerHTML = `<option value="">Select Category</option><option value="__new_category__">+ Create New Category</option>${categoryOptions}`;
         this.dom.filterCategory.innerHTML = `<option value="all">All Categories</option>` + this.data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
         this.dom.filterAccount.innerHTML = `<option value="all">All Accounts</option>` + this.data.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
       }
@@ -613,19 +890,20 @@
           id: editingId || 'tx-' + Date.now(),
           type: this.dom.txType.value,
           date: this.dom.txDate.value,
+          time: this.dom.txTime.value || '09:00',
           amount,
           currency: this.dom.txCurrency.value,
-          fxMarkup: 0,
+          fxMarkup: this.dom.txFxMarkup.value ? parseFloat(this.dom.txFxMarkup.value) : 0,
           fxOverride: null,
           accountId: this.dom.txAccount.value,
           categoryId: this.dom.txCategory.value,
           subcategory: this.dom.txSubcategory.value,
           vendor: this.dom.txVendor.value,
           tags: rawTags,
-          notes: this.dom.txNotes ? this.dom.txNotes.value : '',
-          isSplit: false,
-          splitPerson: null,
-          splitAmount: 0
+          notes: this.dom.txNotes.value,
+          isSplit: this.dom.txIsSplit.checked,
+          splitPerson: this.dom.txIsSplit.checked ? this.dom.splitPerson.value : null,
+          splitAmount: this.dom.txIsSplit.checked ? parseFloat(this.dom.splitAmount.value || 0) : 0
         };
 
         if (editingId) {
@@ -674,18 +952,6 @@
         this.renderAll();
       }
 
-      openCategoryEditor(categoryId) {
-        const category = this.data.categories.find(c => c.id === categoryId);
-        if (!category) return;
-
-        this.dom.editingCategoryId.value = category.id;
-        this.dom.catNameInput.value = category.name;
-        this.dom.catTypeInput.value = category.type;
-        this.dom.catColorInput.value = category.color || '#4f46e5';
-        this.dom.catBudgetInput.value = category.monthlyBudget || 0;
-        this.dom.saveCatBtn.textContent = 'Update Category';
-      }
-
       handleCategorySubmit(e) {
         e.preventDefault();
         const editingId = this.dom.editingCategoryId.value;
@@ -693,41 +959,35 @@
         const type = this.dom.catTypeInput.value;
         const color = this.dom.catColorInput.value || '#4f46e5';
         const monthlyBudget = Number(this.dom.catBudgetInput.value || 0);
-
         if (!name) return;
 
         if (editingId) {
           const idx = this.data.categories.findIndex(c => c.id === editingId);
           if (idx !== -1) {
-            this.data.categories[idx] = {
-              ...this.data.categories[idx],
-              name,
-              type,
-              color,
-              monthlyBudget: monthlyBudget > 0 ? monthlyBudget : 0
-            };
+            this.data.categories[idx] = { ...this.data.categories[idx], name, type, color, monthlyBudget: monthlyBudget > 0 ? monthlyBudget : 0 };
           }
         } else {
-          this.data.categories.push({
-            id: 'cat-' + Date.now(),
-            name,
-            type,
-            color,
-            monthlyBudget: monthlyBudget > 0 ? monthlyBudget : 0
-          });
+          this.data.categories.push({ id: 'cat-' + Date.now(), name, type, color, monthlyBudget: monthlyBudget > 0 ? monthlyBudget : 0 });
         }
 
         this.saveState();
-        this.resetCategoryForm();
+        this.dom.categoryForm.reset();
+        this.dom.editingCategoryId.value = '';
+        this.dom.catColorInput.value = '#4f46e5';
         this.renderCategoryList();
         this.renderAll();
       }
 
-      resetCategoryForm() {
-        this.dom.categoryForm.reset();
-        this.dom.editingCategoryId.value = '';
-        this.dom.catColorInput.value = '#4f46e5';
-        this.dom.saveCatBtn.textContent = 'Add Category';
+      openCategoryEditor(categoryId) {
+        const category = this.data.categories.find(c => c.id === categoryId);
+        if (!category) return;
+        this.dom.editingCategoryId.value = category.id;
+        this.dom.catNameInput.value = category.name;
+        this.dom.catTypeInput.value = category.type;
+        this.dom.catColorInput.value = category.color || '#4f46e5';
+        this.dom.catBudgetInput.value = category.monthlyBudget || 0;
+        this.dom.saveCatBtn.textContent = 'Update Category';
+        document.querySelector('[data-tab="categories"]').click();
       }
 
       deleteTransaction(id) {
@@ -773,7 +1033,6 @@
             return diffDays >= 0 && diffDays <= 7;
           }
           if (dateRange === 'this_month') return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
-
           return true;
         });
       }
@@ -809,7 +1068,7 @@
           const row = document.createElement('tr');
           row.className = 'align-top';
           row.innerHTML = `
-            <td class="p-3">${tx.date}</td>
+            <td class="p-3">${tx.date}<div class="text-[10px] text-slate-400">${tx.time || '00:00'}</div></td>
             <td class="p-3"><span class="px-2 py-1 rounded-full ${tx.type === 'INCOME' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} font-medium">${tx.type}</span></td>
             <td class="p-3">${cat ? cat.name : 'Unknown'}</td>
             <td class="p-3">${tx.vendor || '-'}</td>
@@ -832,6 +1091,7 @@
         this.renderAccounts();
         this.renderCategoryList();
         this.renderSplitLedgerSummary();
+        this.renderBudgetOverview();
         this.applyFilters();
       }
 
@@ -886,35 +1146,331 @@
       renderSplitLedgerSummary() {
         const container = this.dom.splitLedgerSummary;
         container.innerHTML = '';
-        container.innerHTML = '<div class="col-span-full p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">No split expenses yet.</div>';
+
+        const splitTransactions = this.data.transactions.filter(tx => tx.isSplit && tx.splitPerson && Number(tx.splitAmount || 0) > 0);
+        if (splitTransactions.length === 0) {
+          container.innerHTML = '<div class="col-span-full p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">No split expenses yet.</div>';
+          return;
+        }
+
+        splitTransactions.forEach(tx => {
+          const card = document.createElement('div');
+          const owed = this.convertCurrency(Number(tx.splitAmount || 0), tx.currency, this.data.baseCurrency);
+          card.className = 'p-3 rounded-xl bg-white border border-slate-200 shadow-sm';
+          card.innerHTML = `
+            <div class="text-[10px] uppercase text-slate-400 font-semibold">${tx.splitPerson}</div>
+            <div class="mt-1 font-bold text-slate-700">${this.formatCurrency(owed, this.data.baseCurrency)}</div>
+            <div class="mt-1 text-[10px] text-slate-500">${tx.vendor || 'Shared expense'}</div>
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      renderBudgetOverview() {
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+
+        const monthlyBudgetList = this.data.categories.filter(cat => cat.type === 'EXPENSE' && Number(cat.monthlyBudget || 0) > 0);
+        const budgetOverview = this.dom.budgetOverviewList;
+        budgetOverview.innerHTML = '';
+
+        let totalBudget = 0;
+        let totalSpent = 0;
+
+        monthlyBudgetList.forEach(cat => {
+          const spent = this.data.transactions
+            .filter(tx => tx.type === 'EXPENSE' && tx.categoryId === cat.id)
+            .reduce((sum, tx) => {
+              const txDate = new Date(tx.date);
+              if (txDate.getMonth() === monthStart.getMonth() && txDate.getFullYear() === monthStart.getFullYear()) {
+                return sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency);
+              }
+              return sum;
+            }, 0);
+
+          const effectiveBudget = Number(cat.monthlyBudget || 0);
+          totalBudget += effectiveBudget;
+          totalSpent += spent;
+
+          const percent = effectiveBudget > 0 ? Math.min((spent / effectiveBudget) * 100, 100) : 0;
+          const row = document.createElement('div');
+          row.className = 'space-y-1';
+          row.innerHTML = `
+            <div class="flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2">
+                <span class="inline-block w-2.5 h-2.5 rounded-full" style="background:${cat.color || '#4f46e5'}"></span>
+                <span class="font-medium text-slate-700">${cat.name}</span>
+              </div>
+              <span class="font-semibold ${spent > effectiveBudget ? 'text-rose-600' : 'text-slate-600'}">${this.formatCurrency(spent, this.data.baseCurrency)} / ${this.formatCurrency(effectiveBudget, this.data.baseCurrency)}</span>
+            </div>
+            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" style="width:${Math.max(Math.min(percent, 100), 0)}%; background:${cat.color || '#4f46e5'}"></div>
+            </div>
+          `;
+          budgetOverview.appendChild(row);
+        });
+
+        if (!monthlyBudgetList.length) {
+          budgetOverview.innerHTML = '<div class="text-xs text-slate-400 italic">No category budgets configured yet.</div>';
+        }
+
+        this.dom.budgetSummary.textContent = `${this.formatCurrency(totalSpent, this.data.baseCurrency)} / ${this.formatCurrency(totalBudget, this.data.baseCurrency)}`;
+
+        const topCategory = this.data.categories
+          .filter(cat => cat.type === 'EXPENSE')
+          .map(cat => ({
+            ...cat,
+            spent: this.data.transactions
+              .filter(tx => tx.type === 'EXPENSE' && tx.categoryId === cat.id)
+              .reduce((sum, tx) => {
+                const txDate = new Date(tx.date);
+                if (txDate.getMonth() === monthStart.getMonth() && txDate.getFullYear() === monthStart.getFullYear()) {
+                  return sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency);
+                }
+                return sum;
+              }, 0)
+          }))
+          .sort((a, b) => b.spent - a.spent)[0];
+
+        const largestTxn = [...this.data.transactions]
+          .filter(tx => tx.type === 'EXPENSE')
+          .sort((a, b) => this.convertCurrency(Number(b.amount), b.currency, this.data.baseCurrency) - this.convertCurrency(Number(a.amount), a.currency, this.data.baseCurrency))[0];
+
+        const insightList = [];
+        if (topCategory) {
+          insightList.push({ title: 'Top spend', value: `${topCategory.name} • ${this.formatCurrency(topCategory.spent, this.data.baseCurrency)}` });
+        }
+        if (largestTxn) {
+          insightList.push({ title: 'Largest expense', value: `${largestTxn.vendor || 'Transaction'} • ${this.formatCurrency(this.convertCurrency(Number(largestTxn.amount), largestTxn.currency, this.data.baseCurrency), this.data.baseCurrency)}` });
+        }
+        if (!insightList.length) {
+          insightList.push({ title: 'No data', value: 'Add transactions to start insights' });
+        }
+
+        this.dom.insightCards.innerHTML = insightList.map(item => `
+          <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+            <div class="text-[10px] uppercase text-slate-400 font-semibold">${item.title}</div>
+            <div class="mt-1 text-sm font-semibold text-slate-700">${item.value}</div>
+          </div>
+        `).join('');
+      }
+
+      exportCSV() {
+        const rows = this.data.transactions.map(tx => ({
+          Date: tx.date,
+          Time: tx.time || '',
+          Type: tx.type,
+          Amount: tx.amount,
+          Currency: tx.currency,
+          Account: this.data.accounts.find(a => a.id === tx.accountId)?.name || tx.accountId,
+          Category: this.data.categories.find(c => c.id === tx.categoryId)?.name || tx.categoryId,
+          Vendor: tx.vendor || '',
+          Tags: (tx.tags || []).join('; '),
+          Notes: tx.notes || ''
+        }));
+
+        const headers = Object.keys(rows[0] || {
+          Date: '', Time: '', Type: '', Amount: '', Currency: '', Account: '', Category: '', Vendor: '', Tags: '', Notes: ''
+        });
+
+        const csv = [headers.join(',')].concat(rows.map(row => headers.map(key => `"${String(row[key] || '').replace(/"/g, '""')}"`).join(','))).join('\n');
+
+        this.downloadFile(csv, 'trackwise-transactions.csv', 'text/csv;charset=utf-8;');
+      }
+
+      exportPDF() {
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+          alert('PDF export library not loaded.');
+          return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y = 18;
+        doc.setFontSize(16);
+        doc.text('TrackWise Pro - Transactions', 14, y);
+        y += 10;
+
+        const rows = this.data.transactions.map(tx => [
+          tx.date,
+          tx.time || '',
+          tx.type,
+          `${this.formatCurrency(this.convertCurrency(Number(tx.amount), tx.currency, this.data.baseCurrency), this.data.baseCurrency).replace('INR ', '')}`,
+          this.data.accounts.find(a => a.id === tx.accountId)?.name || '',
+          this.data.categories.find(c => c.id === tx.categoryId)?.name || ''
+        ]);
+
+        doc.setFontSize(10);
+        doc.text('Date', 14, y);
+        doc.text('Time', 38, y);
+        doc.text('Type', 58, y);
+        doc.text('Amt', 78, y);
+        doc.text('Account', 100, y);
+        doc.text('Category', 150, y);
+        y += 6;
+
+        rows.forEach((row) => {
+          if (y > 280) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.text(String(row[0] || ''), 14, y);
+          doc.text(String(row[1] || ''), 38, y);
+          doc.text(String(row[2] || ''), 58, y);
+          doc.text(String(row[3] || ''), 78, y);
+          doc.text(String(row[4] || '').slice(0, 18), 100, y);
+          doc.text(String(row[5] || '').slice(0, 18), 150, y);
+          y += 6;
+        });
+
+        doc.save('trackwise-transactions.pdf');
+      }
+
+      exportJSON() {
+        const blob = new Blob([JSON.stringify(this.data, null, 2)], { type: 'application/json' });
+        this.downloadFile(blob, 'trackwise-pro-backup.json', 'application/json');
+      }
+
+      downloadFile(content, filename, mimeType) {
+        const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      processImport() {
+        const file = this.dom.importFileInput.files[0];
+        if (!file) {
+          alert('Please choose a CSV or Excel file to import.');
+          return;
+        }
+
+        const kind = this.dom.importType.value;
+        const fileName = file.name.toLowerCase();
+
+        if (fileName.endsWith('.csv')) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const csvText = e.target.result;
+            const rows = this.parseCSV(csvText);
+            this.importRows(kind, rows);
+          };
+          reader.readAsText(file);
+          return;
+        }
+
+        if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: '' });
+            this.importRows(kind, rows);
+          };
+          reader.readAsArrayBuffer(file);
+          return;
+        }
+
+        alert('Unsupported file type. Please upload CSV or Excel (.xlsx/.xls).');
+      }
+
+      parseCSV(text) {
+        const lines = text.trim().split(/\r?\n/).filter(Boolean);
+        if (!lines.length) return [];
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        return lines.slice(1).map(line => {
+          const values = line.match(/(".*?"|[^,]+)/g) || [];
+          const obj = {};
+          headers.forEach((header, index) => {
+            obj[header] = (values[index] || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+          });
+          return obj;
+        });
+      }
+
+      importRows(kind, rows) {
+        if (kind === 'accounts') {
+          rows.forEach(row => {
+            const name = (row.name || row.account || row.Account || '').trim();
+            if (!name) return;
+            const existing = this.data.accounts.find(a => a.name.toLowerCase() === name.toLowerCase());
+            if (existing) return;
+            const account = {
+              id: 'acc-' + Date.now() + '-' + Math.random().toString(16).slice(2),
+              name,
+              type: (row.type || row.Type || 'BANK').toUpperCase(),
+              currency: (row.currency || row.Currency || this.data.baseCurrency).toUpperCase(),
+              parentId: null,
+              initialBalance: Number(row.balance || row.initialBalance || row.opening_balance || 0),
+              currentBalance: Number(row.balance || row.initialBalance || row.opening_balance || 0)
+            };
+            this.data.accounts.push(account);
+          });
+        }
+
+        if (kind === 'transactions') {
+          rows.forEach(row => {
+            const date = (row.date || row.Date || '').trim();
+            if (!date) return;
+            const amount = Number(row.amount || row.Amount || 0);
+            const type = (row.type || row.Type || 'EXPENSE').toUpperCase();
+            const accountName = (row.account || row.Account || '').trim();
+            const categoryName = (row.category || row.Category || '').trim();
+            if (!amount || !accountName || !categoryName) return;
+
+            let account = this.data.accounts.find(a => a.name.toLowerCase() === accountName.toLowerCase());
+            if (!account) {
+              account = { id: 'acc-' + Date.now() + '-' + Math.random().toString(16).slice(2), name: accountName, type: 'BANK', currency: this.data.baseCurrency, parentId: null, initialBalance: 0, currentBalance: 0 };
+              this.data.accounts.push(account);
+            }
+
+            let category = this.data.categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
+            if (!category) {
+              category = { id: 'cat-' + Date.now() + '-' + Math.random().toString(16).slice(2), name: categoryName, type: type === 'INCOME' ? 'INCOME' : 'EXPENSE', color: '#4f46e5', monthlyBudget: 0 };
+              this.data.categories.push(category);
+            }
+
+            this.data.transactions.push({
+              id: 'tx-' + Date.now() + '-' + Math.random().toString(16).slice(2),
+              type,
+              date,
+              time: (row.time || row.Time || '09:00').trim(),
+              amount,
+              currency: (row.currency || row.Currency || account.currency || this.data.baseCurrency).toUpperCase(),
+              fxMarkup: 0,
+              fxOverride: null,
+              accountId: account.id,
+              categoryId: category.id,
+              subcategory: row.subcategory || row.Subcategory || '',
+              vendor: row.vendor || row.Vendor || '',
+              tags: (row.tags || row.Tags || '').split(';').map(t => t.trim()).filter(Boolean),
+              notes: row.notes || row.Notes || '',
+              isSplit: false,
+              splitPerson: null,
+              splitAmount: 0
+            });
+          });
+        }
+
+        this.recalculateAccountBalances();
+        this.saveState();
+        this.renderAll();
+        this.dom.importModal.classList.add('hidden');
+        this.dom.importFileInput.value = '';
+        alert(`${kind.charAt(0).toUpperCase() + kind.slice(1)} import completed.`);
       }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       new TrackWisePro();
     });
-
-    function exportExcel() { return false; }
-    function exportJSON() { return false; }
-    function processImport() { return false; }
-
-    TrackWisePro.prototype.exportExcel = function () {
-      alert('Excel export is available in the advanced version of this app.');
-    };
-    TrackWisePro.prototype.exportJSON = function () {
-      const blob = new Blob([JSON.stringify(this.data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'trackwise-pro-backup.json';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    };
-    TrackWisePro.prototype.processImport = function () {
-      alert('Import logic can be added here when needed.');
-    };
   </script>
 </body>
 </html>
