@@ -141,6 +141,9 @@
             <button id="exportCsvBtn" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1.5 rounded transition flex items-center gap-1">
               <i class="fa-solid fa-file-csv"></i> CSV
             </button>
+            <button id="exportExcelBtn" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-3 py-1.5 rounded transition flex items-center gap-1">
+              <i class="fa-solid fa-file-excel"></i> Excel
+            </button>
             <button id="exportPdfBtn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded transition">
               <i class="fa-solid fa-file-pdf"></i> PDF
             </button>
@@ -161,6 +164,7 @@
                 <th class="p-3">Account</th>
                 <th class="p-3">Currency</th>
                 <th class="p-3 text-right">Amount</th>
+                <th class="p-3 text-right">Rate</th>
                 <th class="p-3 text-right">INR Equivalent</th>
                 <th class="p-3">Tags</th>
                 <th class="p-3 text-center">Actions</th>
@@ -255,6 +259,14 @@
           <div>
             <label class="block text-slate-600 mb-1 font-medium">FX %</label>
             <input type="number" step="0.01" id="txFxMarkup" placeholder="2.5" class="w-full border rounded-lg p-2 focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-600 mb-1 font-medium">Rate to INR</label>
+          <div class="flex gap-2">
+            <input type="number" step="0.01" id="txFxRate" placeholder="83.5" class="w-full border rounded-lg p-2 focus:outline-none" />
+            <button type="button" id="lookupXeRateBtn" class="px-2 py-2 bg-amber-500 text-white rounded-lg text-[11px] whitespace-nowrap">XE.com</button>
           </div>
         </div>
 
@@ -446,7 +458,7 @@
   <script>
     class TrackWisePro {
       constructor() {
-        this.fxRates = { USD: 1.0, EUR: 0.92, GBP: 0.79, INR: 83.5, AED: 3.67 };
+        this.defaultRates = { USD: 83.5, EUR: 92.0, GBP: 108.3, AED: 22.8, INR: 1 };
         this.data = this.loadSavedState() || this.getDefaultAccountsData();
         this.transactionSortMode = 'date_desc';
         this.categoryChart = null;
@@ -481,6 +493,7 @@
 
         return {
           baseCurrency: 'INR',
+          exchangeRates: { ...this.defaultRates },
           accounts: [
             { id: 'acc-icici-sav', name: 'ICICI Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 240000, currentBalance: 240000, parentId: null },
             { id: 'acc-hdfc-sav', name: 'HDFC Bank Savings Account', type: 'BANK', currency: 'INR', initialBalance: 98000, currentBalance: 98000, parentId: null },
@@ -498,12 +511,12 @@
             { id: 'cat-6', name: 'Freelance', type: 'INCOME', color: '#06b6d4', monthlyBudget: 0 }
           ],
           transactions: [
-            { id: 'tx-demo-1', type: 'INCOME', date: isoDate(-12), time: '09:30', amount: 180000, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-4', subcategory: 'Salary', vendor: 'Company', tags: ['salary'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
-            { id: 'tx-demo-2', type: 'EXPENSE', date: isoDate(-9), time: '13:15', amount: 6500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-2', subcategory: 'Lunch', vendor: 'Restaurant', tags: ['food'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
-            { id: 'tx-demo-3', type: 'EXPENSE', date: isoDate(-7), time: '18:45', amount: 13500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-sbi-sav', categoryId: 'cat-1', subcategory: 'Flight', vendor: 'Airline', tags: ['travel'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
-            { id: 'tx-demo-4', type: 'INCOME', date: isoDate(-6), time: '10:10', amount: 18500, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-hdfc-sav', categoryId: 'cat-6', subcategory: 'Consulting', vendor: 'Client', tags: ['freelance'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
-            { id: 'tx-demo-5', type: 'EXPENSE', date: isoDate(-4), time: '08:05', amount: 3200, currency: 'INR', fxMarkup: 0, fxOverride: null, accountId: 'acc-cash-inr', categoryId: 'cat-3', subcategory: 'Power Bill', vendor: 'Electricity Board', tags: ['bill'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 },
-            { id: 'tx-demo-6', type: 'EXPENSE', date: isoDate(-2), time: '12:00', amount: 250, currency: 'USD', fxMarkup: 0, fxOverride: null, accountId: 'acc-cash-usd', categoryId: 'cat-5', subcategory: 'Mutual Fund', vendor: 'Broker', tags: ['investment'], notes: '', isSplit: false, splitPerson: null, splitAmount: 0 }
+            { id: 'tx-demo-1', type: 'INCOME', date: isoDate(-12), time: '09:30', amount: 180000, currency: 'INR', fxMarkup: 0, fxRate: 1, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-4', subcategory: 'Salary', vendor: 'Employer', tags: ['salary'], notes: 'Monthly salary', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-2', type: 'EXPENSE', date: isoDate(-9), time: '13:15', amount: 6500, currency: 'INR', fxMarkup: 0, fxRate: 1, fxOverride: null, accountId: 'acc-icici-sav', categoryId: 'cat-2', subcategory: 'Lunch', vendor: 'Cafe', tags: ['food'], notes: 'Lunch meeting', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-3', type: 'EXPENSE', date: isoDate(-7), time: '18:45', amount: 13500, currency: 'INR', fxMarkup: 0, fxRate: 1, fxOverride: null, accountId: 'acc-sbi-sav', categoryId: 'cat-1', subcategory: 'Flights', vendor: 'Air India', tags: ['travel'], notes: 'Domestic trip', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-4', type: 'INCOME', date: isoDate(-6), time: '10:10', amount: 18500, currency: 'INR', fxMarkup: 0, fxRate: 1, fxOverride: null, accountId: 'acc-hdfc-sav', categoryId: 'cat-6', subcategory: 'Client', vendor: 'Freelance', tags: ['freelance'], notes: 'Client payment', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-5', type: 'EXPENSE', date: isoDate(-4), time: '08:05', amount: 3200, currency: 'INR', fxMarkup: 0, fxRate: 1, fxOverride: null, accountId: 'acc-cash-inr', categoryId: 'cat-3', subcategory: 'Internet', vendor: 'Provider', tags: ['utilities'], notes: 'Monthly internet', isSplit: false, splitPerson: null, splitAmount: 0 },
+            { id: 'tx-demo-6', type: 'EXPENSE', date: isoDate(-2), time: '12:00', amount: 250, currency: 'USD', fxMarkup: 0, fxRate: 83.5, fxOverride: null, accountId: 'acc-cash-usd', categoryId: 'cat-5', subcategory: 'Stocks', vendor: 'Brokerage', tags: ['investment'], notes: 'Invested in stock purchase', isSplit: false, splitPerson: null, splitAmount: 0 }
           ],
           splitLedgers: []
         };
@@ -513,17 +526,53 @@
         localStorage.setItem('TRACKWISE_PRO_DATA', JSON.stringify(this.data));
       }
 
+      resolveRateForTransaction(tx) {
+        const curr = tx && tx.currency ? tx.currency : this.data.baseCurrency;
+        if (curr === 'INR') return 1;
+
+        const override = tx && tx.fxOverride !== null && tx.fxOverride !== undefined ? Number(tx.fxOverride) : null;
+        if (override && Number.isFinite(override) && override > 0) return override;
+
+        const manualRate = tx && tx.fxRate && Number(tx.fxRate) > 0 ? Number(tx.fxRate) : null;
+        if (manualRate) return manualRate;
+
+        const stored = this.data.exchangeRates && this.data.exchangeRates[curr];
+        if (stored && Number(stored) > 0) return Number(stored);
+
+        return Number(this.defaultRates[curr]) || 1;
+      }
+
       convertCurrency(amount, fromCurrency, toCurrency = this.data.baseCurrency) {
         const numeric = Number(amount) || 0;
         const source = fromCurrency || this.data.baseCurrency;
         const target = toCurrency || this.data.baseCurrency;
-        if (!this.fxRates[source] || !this.fxRates[target]) return numeric;
+
         if (source === target) return numeric;
-        return (numeric * this.fxRates[target]) / this.fxRates[source];
+
+        const sourceToInr = source === 'INR' ? 1 : this.resolveRateForCurrency(source);
+        const targetToInr = target === 'INR' ? 1 : this.resolveRateForCurrency(target);
+
+        if (!sourceToInr || !targetToInr) return numeric;
+        return (numeric * sourceToInr) / targetToInr;
       }
 
-      formatCurrency(amount, currency = this.data.baseCurrency) {
-        return `${currency} ${Number(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      resolveRateForCurrency(currency) {
+        const rate = this.data.exchangeRates && this.data.exchangeRates[currency];
+        if (rate && Number(rate) > 0) return Number(rate);
+        if (this.defaultRates[currency] && Number(this.defaultRates[currency]) > 0) return Number(this.defaultRates[currency]);
+        return 1;
+      }
+
+      getEquivalentInINR(tx) {
+        const amount = Number(tx.amount) || 0;
+        const rate = this.resolveRateForTransaction(tx);
+        return amount * rate;
+      }
+
+      formatMoney(amount, currency = this.data.baseCurrency) {
+        const value = Number(amount) || 0;
+        const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'AED' ? 'AED' : '₹';
+        return `${symbol} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       }
 
       initDOM() {
@@ -557,6 +606,8 @@
           txAmount: document.getElementById('txAmount'),
           txCurrency: document.getElementById('txCurrency'),
           txFxMarkup: document.getElementById('txFxMarkup'),
+          txFxRate: document.getElementById('txFxRate'),
+          lookupXeRateBtn: document.getElementById('lookupXeRateBtn'),
           txAccount: document.getElementById('txAccount'),
           txCategory: document.getElementById('txCategory'),
           txSubcategory: document.getElementById('txSubcategory'),
@@ -607,6 +658,7 @@
           importType: document.getElementById('importType'),
           processImportBtn: document.getElementById('processImportBtn'),
           exportCsvBtn: document.getElementById('exportCsvBtn'),
+          exportExcelBtn: document.getElementById('exportExcelBtn'),
           exportPdfBtn: document.getElementById('exportPdfBtn'),
           exportJsonBtn: document.getElementById('exportJsonBtn')
         };
@@ -657,6 +709,8 @@
         this.dom.closeImportModalBtn.addEventListener('click', () => this.dom.importModal.classList.add('hidden'));
         this.dom.cancelImportBtn.addEventListener('click', () => this.dom.importModal.classList.add('hidden'));
 
+        this.dom.lookupXeRateBtn.addEventListener('click', () => this.openXeRateLookup());
+        this.dom.txCurrency.addEventListener('change', () => this.syncFxRateWithCurrency());
         this.dom.txIsSplit.addEventListener('change', (e) => {
           this.dom.splitSection.classList.toggle('hidden', !e.target.checked);
         });
@@ -678,9 +732,26 @@
         this.dom.filterTag.addEventListener('input', () => this.applyFilters());
 
         this.dom.exportCsvBtn.addEventListener('click', () => this.exportCSV());
+        this.dom.exportExcelBtn.addEventListener('click', () => this.exportExcel());
         this.dom.exportPdfBtn.addEventListener('click', () => this.exportPDF());
         this.dom.exportJsonBtn.addEventListener('click', () => this.exportJSON());
         this.dom.processImportBtn.addEventListener('click', () => this.processImport());
+      }
+
+      openXeRateLookup() {
+        const currency = this.dom.txCurrency.value || 'USD';
+        const url = `https://www.xe.com/currencyconverter/convert/?Amount=1&From=${currency}&To=INR`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+
+      syncFxRateWithCurrency() {
+        const currency = this.dom.txCurrency.value;
+        if (!currency || currency === 'INR') {
+          this.dom.txFxRate.value = '1';
+          return;
+        }
+        const rate = this.resolveRateForCurrency(currency);
+        this.dom.txFxRate.value = Number(rate).toFixed(2);
       }
 
       recalculateAccountBalances() {
@@ -727,18 +798,405 @@
         }
       }
 
-      moveItem(listKey, itemId, direction) {
-        const list = this.data[listKey];
-        if (!Array.isArray(list)) return;
-        const idx = list.findIndex(item => item.id === itemId);
-        if (idx === -1) return;
+      getVisibleTransactions() {
+        const filterRange = this.dom.filterDateRange.value;
+        const filterCategory = this.dom.filterCategory.value;
+        const filterAccount = this.dom.filterAccount.value;
+        const tagQuery = this.dom.filterTag.value.trim().toLowerCase();
 
-        const target = direction === 'up' ? idx - 1 : idx + 1;
-        if (target < 0 || target >= list.length) return;
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        [list[idx], list[target]] = [list[target], list[idx]];
+        let filtered = this.data.transactions.filter(tx => {
+          let dateMatch = true;
+          if (filterRange === 'today') {
+            dateMatch = tx.date === startOfToday.toISOString().split('T')[0];
+          } else if (filterRange === 'this_week') {
+            dateMatch = new Date(tx.date) >= startOfWeek;
+          } else if (filterRange === 'this_month') {
+            dateMatch = new Date(tx.date) >= startOfMonth;
+          }
+
+          const catMatch = filterCategory === 'all' || tx.categoryId === filterCategory;
+          const accountMatch = filterAccount === 'all' || tx.accountId === filterAccount;
+          const tagMatch = !tagQuery || (tx.tags || []).some(tag => tag.toLowerCase().includes(tagQuery));
+          return dateMatch && catMatch && accountMatch && tagMatch;
+        });
+
+        return this.sortTransactionsList(filtered);
+      }
+
+      applyFilters() {
+        this.renderTransactionTable();
+      }
+
+      renderAll() {
+        this.populateDropdowns();
+        this.renderSummary();
+        this.renderDashboardCharts();
+        this.renderBudgetTracker();
+        this.renderSmartInsights();
+        this.renderAccountCards();
+        this.renderCategoryCards();
+        this.renderSplitLedger();
+        this.renderTransactionTable();
+      }
+
+      renderSummary() {
+        const visible = this.getVisibleTransactions();
+        const income = visible.filter(tx => tx.type === 'INCOME').reduce((sum, tx) => sum + this.getEquivalentInINR(tx), 0);
+        const expense = visible.filter(tx => tx.type === 'EXPENSE').reduce((sum, tx) => sum + this.getEquivalentInINR(tx), 0);
+        const liquidity = this.data.accounts.reduce((sum, acc) => sum + (acc.currency === 'INR' ? Number(acc.currentBalance || 0) : this.convertCurrency(Number(acc.currentBalance || 0), acc.currency, 'INR')), 0);
+        const net = income - expense;
+
+        this.dom.summaryLiquidity.textContent = this.formatMoney(liquidity, 'INR');
+        this.dom.summaryIncome.textContent = this.formatMoney(income, 'INR');
+        this.dom.summaryExpense.textContent = this.formatMoney(expense, 'INR');
+        this.dom.summaryNet.textContent = this.formatMoney(net, 'INR');
+      }
+
+      renderDashboardCharts() {
+        const categoryTotals = {};
+        const mintedTransactions = this.getVisibleTransactions();
+        mintedTransactions.forEach(tx => {
+          if (tx.type !== 'EXPENSE') return;
+          const cat = this.data.categories.find(c => c.id === tx.categoryId);
+          const name = cat ? cat.name : 'Uncategorized';
+          categoryTotals[name] = (categoryTotals[name] || 0) + this.getEquivalentInINR(tx);
+        });
+
+        const labels = Object.keys(categoryTotals);
+        const data = Object.values(categoryTotals);
+
+        if (this.categoryChart) this.categoryChart.destroy();
+        this.categoryChart = new Chart(document.getElementById('categoryChart'), {
+          type: 'doughnut',
+          data: {
+            labels,
+            datasets: [{ data, backgroundColor: ['#6366f1', '#f59e0b', '#10b981', '#f43f5e', '#8b5cf6', '#06b6d4', '#84cc16'] }]
+          },
+          options: { plugins: { legend: { position: 'bottom' } }, maintainAspectRatio: false }
+        });
+
+        const dailyMap = {};
+        mintedTransactions.forEach(tx => {
+          const dateKey = tx.date;
+          if (!dailyMap[dateKey]) dailyMap[dateKey] = { income: 0, expense: 0 };
+          if (tx.type === 'INCOME') dailyMap[dateKey].income += this.getEquivalentInINR(tx);
+          if (tx.type === 'EXPENSE') dailyMap[dateKey].expense += this.getEquivalentInINR(tx);
+        });
+
+        const lineLabels = Object.keys(dailyMap).sort();
+        const incomeSeries = lineLabels.map(key => dailyMap[key].income);
+        const expenseSeries = lineLabels.map(key => dailyMap[key].expense);
+
+        if (this.trendChart) this.trendChart.destroy();
+        this.trendChart = new Chart(document.getElementById('trendChart'), {
+          type: 'line',
+          data: {
+            labels: lineLabels.slice(-10),
+            datasets: [
+              { label: 'Income', data: incomeSeries.slice(-10), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.15)', tension: 0.3 },
+              { label: 'Expenses', data: expenseSeries.slice(-10), borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.15)', tension: 0.3 }
+            ]
+          },
+          options: { maintainAspectRatio: false, scales: { y: { beginAtZero: false } } }
+        });
+      }
+
+      renderBudgetTracker() {
+        const categories = this.data.categories.filter(c => c.type === 'EXPENSE');
+        const totalBudget = categories.reduce((sum, c) => sum + (Number(c.monthlyBudget) || 0), 0);
+        const spent = this.data.transactions.filter(tx => tx.type === 'EXPENSE').reduce((sum, tx) => sum + this.getEquivalentInINR(tx), 0);
+        this.dom.budgetSummary.textContent = `₹${spent.toLocaleString(undefined, { maximumFractionDigits: 2 })} / ₹${totalBudget.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
+        this.dom.budgetOverviewList.innerHTML = categories.map(cat => {
+          const spentValue = this.data.transactions.filter(tx => tx.categoryId === cat.id && tx.type === 'EXPENSE').reduce((sum, tx) => sum + this.getEquivalentInINR(tx), 0);
+          const pct = cat.monthlyBudget ? Math.min((spentValue / cat.monthlyBudget) * 100, 100) : 0;
+          return `
+            <div>
+              <div class="flex justify-between text-[11px] font-medium text-slate-600 mb-1">
+                <span>${cat.name}</span>
+                <span>₹${spentValue.toLocaleString(undefined, { maximumFractionDigits: 2 })} / ₹${(cat.monthlyBudget || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+              </div>
+              <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full" style="width:${pct}%; background:${cat.color || '#4f46e5'}"></div>
+              </div>
+            </div>
+          `;
+        }).join('') || '<div class="text-xs text-slate-400">No expense categories configured.</div>';
+      }
+
+      renderSmartInsights() {
+        const txs = this.data.transactions;
+        const topCategory = Object.entries(
+          txs.filter(tx => tx.type === 'EXPENSE').reduce((acc, tx) => {
+            const cat = this.data.categories.find(c => c.id === tx.categoryId);
+            const key = cat ? cat.name : 'Uncategorized';
+            acc[key] = (acc[key] || 0) + this.getEquivalentInINR(tx);
+            return acc;
+          }, {})
+        ).sort((a, b) => b[1] - a[1])[0];
+
+        const totalExpenses = txs.filter(tx => tx.type === 'EXPENSE').reduce((sum, tx) => sum + this.getEquivalentInINR(tx), 0);
+        const totalIncome = txs.filter(tx => tx.type === 'INCOME').reduce((sum, tx) => sum + this.getEquivalentInINR(tx), 0);
+
+        const cards = [
+          { title: 'Top Spending Category', value: topCategory ? `${topCategory[0]} · ₹${topCategory[1].toLocaleString(undefined, { maximumFractionDigits: 2 })}` : 'No data' },
+          { title: 'Expense to Income', value: totalIncome ? `${((totalExpenses / totalIncome) * 100).toFixed(0)}%` : '0%' },
+          { title: 'Savings Rate', value: totalIncome ? `${(((totalIncome - totalExpenses) / totalIncome) * 100).toFixed(0)}%` : '0%' }
+        ];
+
+        this.dom.insightCards.innerHTML = cards.map(item => `
+          <div class="border rounded-lg p-3 bg-slate-50">
+            <div class="text-[10px] uppercase tracking-wide text-slate-400 font-bold">${item.title}</div>
+            <div class="mt-1 text-sm font-bold text-slate-700">${item.value}</div>
+          </div>
+        `).join('');
+      }
+
+      renderAccountCards() {
+        this.dom.accountListContainer.innerHTML = this.data.accounts.map(acc => {
+          const isPositive = Number(acc.currentBalance) >= 0;
+          return `
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+              <div class="flex justify-between items-start mb-2">
+                <div>
+                  <div class="font-bold text-slate-700 text-sm">${acc.name}</div>
+                  <div class="text-[10px] uppercase tracking-wide text-slate-400">${acc.type}</div>
+                </div>
+                <div class="flex gap-2">
+                  <button class="text-slate-400 hover:text-indigo-600" data-edit-account="${acc.id}"><i class="fa-solid fa-pen-to-square"></i></button>
+                  <button class="text-slate-400 hover:text-rose-600" data-delete-account="${acc.id}"><i class="fa-solid fa-trash"></i></button>
+                </div>
+              </div>
+              <div class="text-xs text-slate-500 mb-2">${acc.currency} • ${acc.parentId ? 'Linked' : 'Standalone'}</div>
+              <div class="text-lg font-extrabold ${isPositive ? 'text-emerald-600' : 'text-rose-600'}">${this.formatMoney(acc.currentBalance, acc.currency)}</div>
+            </div>
+          `;
+        }).join('');
+
+        document.querySelectorAll('[data-edit-account]').forEach(btn => {
+          btn.addEventListener('click', () => this.openAccountModal(btn.getAttribute('data-edit-account')));
+        });
+
+        document.querySelectorAll('[data-delete-account]').forEach(btn => {
+          btn.addEventListener('click', () => this.deleteAccount(btn.getAttribute('data-delete-account')));
+        });
+      }
+
+      renderCategoryCards() {
+        this.dom.categoryListContainer.innerHTML = this.data.categories.map(cat => {
+          const spent = this.data.transactions.filter(tx => tx.categoryId === cat.id && tx.type === 'EXPENSE').reduce((sum, tx) => sum + this.getEquivalentInINR(tx), 0);
+          return `
+            <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="inline-block w-3 h-3 rounded-full" style="background:${cat.color || '#4f46e5'}"></span>
+                  <span class="font-semibold text-slate-700 text-sm">${cat.name}</span>
+                </div>
+                <div class="flex gap-2">
+                  <button class="text-slate-400 hover:text-indigo-600" data-edit-category="${cat.id}"><i class="fa-solid fa-pen"></i></button>
+                  <button class="text-slate-400 hover:text-rose-600" data-delete-category="${cat.id}"><i class="fa-solid fa-trash"></i></button>
+                </div>
+              </div>
+              <div class="mt-2 text-[11px] text-slate-500">${cat.type} • Budget: ${this.formatMoney(cat.monthlyBudget || 0, 'INR')}</div>
+              <div class="mt-2 text-xs text-slate-600">Spent: ${this.formatMoney(spent, 'INR')}</div>
+            </div>
+          `;
+        }).join('');
+
+        document.querySelectorAll('[data-edit-category]').forEach(btn => {
+          btn.addEventListener('click', () => this.openCategoryEditor(btn.getAttribute('data-edit-category')));
+        });
+
+        document.querySelectorAll('[data-delete-category]').forEach(btn => {
+          btn.addEventListener('click', () => this.deleteCategory(btn.getAttribute('data-delete-category')));
+        });
+      }
+
+      renderSplitLedger() {
+        const splitTxs = this.data.transactions.filter(tx => tx.isSplit && tx.splitAmount && tx.splitPerson);
+        if (!splitTxs.length) {
+          this.dom.splitLedgerSummary.innerHTML = '<div class="text-xs text-slate-400 col-span-full">No split ledger entries yet.</div>';
+          return;
+        }
+
+        this.dom.splitLedgerSummary.innerHTML = splitTxs.map(tx => {
+          const person = tx.splitPerson || 'Unknown';
+          const owed = Number(tx.splitAmount) || 0;
+          return `
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-3">
+              <div class="font-semibold text-slate-700">${person}</div>
+              <div class="text-[11px] text-slate-500">${tx.vendor || 'Expense'}</div>
+              <div class="mt-1 text-sm font-bold text-indigo-600">₹${owed.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      renderTransactionTable() {
+        const rows = this.getVisibleTransactions();
+        if (!rows.length) {
+          this.dom.transactionTableBody.innerHTML = '<tr><td colspan="12" class="p-4 text-center text-slate-400">No transactions found.</td></tr>';
+          return;
+        }
+
+        this.dom.transactionTableBody.innerHTML = rows.map(tx => {
+          const cat = this.data.categories.find(c => c.id === tx.categoryId) || { name: 'Unknown' };
+          const acc = this.data.accounts.find(a => a.id === tx.accountId) || { name: 'Unknown' };
+          const rate = this.resolveRateForTransaction(tx);
+          const equivalent = this.getEquivalentInINR(tx);
+          return `
+            <tr>
+              <td class="p-3">${tx.date}</td>
+              <td class="p-3">${tx.time || '--'}</td>
+              <td class="p-3"><span class="inline-flex px-2 py-1 rounded-full ${tx.type === 'INCOME' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${tx.type}</span></td>
+              <td class="p-3">${cat.name}</td>
+              <td class="p-3">${tx.vendor || '--'}</td>
+              <td class="p-3">${acc.name}</td>
+              <td class="p-3">${tx.currency}</td>
+              <td class="p-3 text-right font-medium ${tx.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}">${this.formatMoney(tx.amount, tx.currency)}</td>
+              <td class="p-3 text-right">${rate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td class="p-3 text-right font-bold text-indigo-600">${this.formatMoney(equivalent, 'INR')}</td>
+              <td class="p-3">${(tx.tags || []).map(tag => tag.startsWith('#') ? tag : `#${tag}`).join(', ') || '--'}</td>
+              <td class="p-3 text-center">
+                <div class="flex justify-center gap-2">
+                  <button class="text-slate-400 hover:text-indigo-600" data-edit-transaction="${tx.id}"><i class="fa-solid fa-pen"></i></button>
+                  <button class="text-slate-400 hover:text-rose-600" data-delete-transaction="${tx.id}"><i class="fa-solid fa-trash"></i></button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        document.querySelectorAll('[data-edit-transaction]').forEach(btn => {
+          btn.addEventListener('click', () => this.openTransactionModal(btn.getAttribute('data-edit-transaction')));
+        });
+
+        document.querySelectorAll('[data-delete-transaction]').forEach(btn => {
+          btn.addEventListener('click', () => this.deleteTransaction(btn.getAttribute('data-delete-transaction')));
+        });
+      }
+
+      openTransactionModal(editingId = null) {
+        this.populateDropdowns();
+        if (editingId) {
+          const tx = this.data.transactions.find(t => t.id === editingId);
+          if (!tx) return;
+          this.dom.editingTransactionId.value = tx.id;
+          this.dom.txType.value = tx.type;
+          this.dom.txDate.value = tx.date;
+          this.dom.txTime.value = tx.time || '09:00';
+          this.dom.txAmount.value = tx.amount;
+          this.dom.txCurrency.value = tx.currency;
+          this.dom.txFxMarkup.value = tx.fxMarkup || '';
+          this.dom.txFxRate.value = tx.fxRate ? Number(tx.fxRate).toFixed(2) : this.resolveRateForCurrency(tx.currency).toFixed(2);
+          this.dom.txAccount.value = tx.accountId;
+          this.dom.txCategory.value = tx.categoryId;
+          this.dom.txSubcategory.value = tx.subcategory || '';
+          this.dom.txVendor.value = tx.vendor || '';
+          this.dom.txTags.value = tx.tags ? tx.tags.join(', ') : '';
+          this.dom.txNotes.value = tx.notes || '';
+          if (tx.isSplit) {
+            this.dom.txIsSplit.checked = true;
+            this.dom.splitSection.classList.remove('hidden');
+            this.dom.splitPerson.value = tx.splitPerson || '';
+            this.dom.splitAmount.value = tx.splitAmount || '';
+          } else {
+            this.dom.txIsSplit.checked = false;
+            this.dom.splitSection.classList.add('hidden');
+          }
+        } else {
+          this.dom.editingTransactionId.value = '';
+          this.dom.transactionForm.reset();
+          this.dom.txDate.value = new Date().toISOString().split('T')[0];
+          this.dom.txTime.value = new Date().toTimeString().slice(0, 5);
+          this.dom.txCurrency.value = this.data.baseCurrency;
+          this.dom.txFxRate.value = '1.00';
+          this.dom.txIsSplit.checked = false;
+          this.dom.splitSection.classList.add('hidden');
+          this.dom.quickAccountCreate.classList.add('hidden');
+          this.dom.quickCategoryCreate.classList.add('hidden');
+        }
+        this.dom.transactionModal.classList.remove('hidden');
+      }
+
+      closeTransactionModal() {
+        this.dom.transactionModal.classList.add('hidden');
+        this.dom.quickAccountCreate.classList.add('hidden');
+        this.dom.quickCategoryCreate.classList.add('hidden');
+      }
+
+      openAccountModal(editingId = null) {
+        this.populateParentAccountOptions();
+        if (editingId) {
+          const acc = this.data.accounts.find(a => a.id === editingId);
+          if (!acc) return;
+          this.dom.editingAccountId.value = acc.id;
+          this.dom.accName.value = acc.name;
+          this.dom.accType.value = acc.type;
+          this.dom.accCurrency.value = acc.currency;
+          this.dom.accParent.value = acc.parentId || '';
+          this.dom.accBalance.value = acc.initialBalance;
+        } else {
+          this.dom.editingAccountId.value = '';
+          this.dom.accountForm.reset();
+        }
+        this.dom.accountModal.classList.remove('hidden');
+      }
+
+      closeAccountModal() {
+        this.dom.accountModal.classList.add('hidden');
+      }
+
+      openCategoryEditor(categoryId) {
+        const cat = this.data.categories.find(c => c.id === categoryId);
+        if (!cat) return;
+        this.dom.editingCategoryId.value = cat.id;
+        this.dom.catNameInput.value = cat.name;
+        this.dom.catTypeInput.value = cat.type;
+        this.dom.catColorInput.value = cat.color || '#4f46e5';
+        this.dom.catBudgetInput.value = cat.monthlyBudget || 0;
+        this.dom.saveCatBtn.textContent = 'Update Category';
+        document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('border-white', 'text-white', 'font-bold'));
+        document.querySelector('[data-tab="categories"]').click();
+      }
+
+      deleteAccount(id) {
+        this.data.accounts = this.data.accounts.filter(a => a.id !== id);
+        this.data.transactions = this.data.transactions.filter(t => t.accountId !== id);
         this.saveState();
         this.renderAll();
+      }
+
+      deleteCategory(id) {
+        this.data.categories = this.data.categories.filter(c => c.id !== id);
+        this.data.transactions = this.data.transactions.filter(t => t.categoryId !== id);
+        this.saveState();
+        this.renderAll();
+      }
+
+      deleteTransaction(id) {
+        this.data.transactions = this.data.transactions.filter(t => t.id !== id);
+        this.saveState();
+        this.renderAll();
+      }
+
+      populateDropdowns() {
+        const accountOptions = this.data.accounts.map(a => `<option value="${a.id}">${a.name} (${a.currency})</option>`).join('');
+        const categoryOptions = this.data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        this.dom.txAccount.innerHTML = `<option value="">Select Account</option><option value="__new_account__">+ Create New Account</option>${accountOptions}`;
+        this.dom.txCategory.innerHTML = `<option value="">Select Category</option><option value="__new_category__">+ Create New Category</option>${categoryOptions}`;
+        this.dom.filterCategory.innerHTML = `<option value="all">All Categories</option>` + this.data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        this.dom.filterAccount.innerHTML = `<option value="all">All Accounts</option>` + this.data.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+      }
+
+      populateParentAccountOptions() {
+        const bankAccounts = this.data.accounts.filter(a => a.type === 'BANK' && a.id !== this.dom.editingAccountId.value);
+        this.dom.accParent.innerHTML = `<option value="">-- None (Standalone) --</option>` + bankAccounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
       }
 
       handleQuickCreateSelect(type) {
@@ -822,89 +1280,6 @@
         this.renderAll();
       }
 
-      openTransactionModal(editingId = null) {
-        this.populateDropdowns();
-        if (editingId) {
-          const tx = this.data.transactions.find(t => t.id === editingId);
-          if (!tx) return;
-          this.dom.editingTransactionId.value = tx.id;
-          this.dom.txType.value = tx.type;
-          this.dom.txDate.value = tx.date;
-          this.dom.txTime.value = tx.time || '09:00';
-          this.dom.txAmount.value = tx.amount;
-          this.dom.txCurrency.value = tx.currency;
-          this.dom.txFxMarkup.value = tx.fxMarkup || '';
-          this.dom.txAccount.value = tx.accountId;
-          this.dom.txCategory.value = tx.categoryId;
-          this.dom.txSubcategory.value = tx.subcategory || '';
-          this.dom.txVendor.value = tx.vendor || '';
-          this.dom.txTags.value = tx.tags ? tx.tags.join(', ') : '';
-          this.dom.txNotes.value = tx.notes || '';
-          if (tx.isSplit) {
-            this.dom.txIsSplit.checked = true;
-            this.dom.splitSection.classList.remove('hidden');
-            this.dom.splitPerson.value = tx.splitPerson || '';
-            this.dom.splitAmount.value = tx.splitAmount || '';
-          } else {
-            this.dom.txIsSplit.checked = false;
-            this.dom.splitSection.classList.add('hidden');
-          }
-        } else {
-          this.dom.editingTransactionId.value = '';
-          this.dom.transactionForm.reset();
-          this.dom.txDate.value = new Date().toISOString().split('T')[0];
-          this.dom.txTime.value = new Date().toTimeString().slice(0, 5);
-          this.dom.txCurrency.value = this.data.baseCurrency;
-          this.dom.txIsSplit.checked = false;
-          this.dom.splitSection.classList.add('hidden');
-          this.dom.quickAccountCreate.classList.add('hidden');
-          this.dom.quickCategoryCreate.classList.add('hidden');
-        }
-        this.dom.transactionModal.classList.remove('hidden');
-      }
-
-      closeTransactionModal() {
-        this.dom.transactionModal.classList.add('hidden');
-        this.dom.quickAccountCreate.classList.add('hidden');
-        this.dom.quickCategoryCreate.classList.add('hidden');
-      }
-
-      openAccountModal(editingId = null) {
-        this.populateParentAccountOptions();
-        if (editingId) {
-          const acc = this.data.accounts.find(a => a.id === editingId);
-          if (!acc) return;
-          this.dom.editingAccountId.value = acc.id;
-          this.dom.accName.value = acc.name;
-          this.dom.accType.value = acc.type;
-          this.dom.accCurrency.value = acc.currency;
-          this.dom.accParent.value = acc.parentId || '';
-          this.dom.accBalance.value = acc.initialBalance;
-        } else {
-          this.dom.editingAccountId.value = '';
-          this.dom.accountForm.reset();
-        }
-        this.dom.accountModal.classList.remove('hidden');
-      }
-
-      closeAccountModal() {
-        this.dom.accountModal.classList.add('hidden');
-      }
-
-      populateDropdowns() {
-        const accountOptions = this.data.accounts.map(a => `<option value="${a.id}">${a.name} (${a.currency})</option>`).join('');
-        const categoryOptions = this.data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-        this.dom.txAccount.innerHTML = `<option value="">Select Account</option><option value="__new_account__">+ Create New Account</option>${accountOptions}`;
-        this.dom.txCategory.innerHTML = `<option value="">Select Category</option><option value="__new_category__">+ Create New Category</option>${categoryOptions}`;
-        this.dom.filterCategory.innerHTML = `<option value="all">All Categories</option>` + this.data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-        this.dom.filterAccount.innerHTML = `<option value="all">All Accounts</option>` + this.data.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-      }
-
-      populateParentAccountOptions() {
-        const bankAccounts = this.data.accounts.filter(a => a.type === 'BANK' && a.id !== this.dom.editingAccountId.value);
-        this.dom.accParent.innerHTML = `<option value="">-- None (Standalone) --</option>` + bankAccounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-      }
-
       handleTransactionSubmit(e) {
         e.preventDefault();
         const editingId = this.dom.editingTransactionId.value;
@@ -916,6 +1291,7 @@
           return;
         }
 
+        const fxRateValue = Number(this.dom.txFxRate.value || 0);
         const payload = {
           id: editingId || 'tx-' + Date.now(),
           type: this.dom.txType.value,
@@ -924,6 +1300,7 @@
           amount,
           currency: this.dom.txCurrency.value,
           fxMarkup: this.dom.txFxMarkup.value ? parseFloat(this.dom.txFxMarkup.value) : 0,
+          fxRate: this.dom.txCurrency.value === 'INR' ? 1 : Number.isFinite(fxRateValue) && fxRateValue > 0 ? fxRateValue : this.resolveRateForCurrency(this.dom.txCurrency.value),
           fxOverride: null,
           accountId: this.dom.txAccount.value,
           categoryId: this.dom.txCategory.value,
@@ -943,6 +1320,7 @@
           this.data.transactions.unshift(payload);
         }
 
+        this.data.exchangeRates[this.dom.txCurrency.value] = payload.fxRate;
         this.recalculateAccountBalances();
         this.saveState();
         this.closeTransactionModal();
@@ -1000,488 +1378,217 @@
           this.data.categories.push({ id: 'cat-' + Date.now(), name, type, color, monthlyBudget: monthlyBudget > 0 ? monthlyBudget : 0 });
         }
 
-        this.saveState();
         this.dom.categoryForm.reset();
         this.dom.editingCategoryId.value = '';
-        this.dom.catColorInput.value = '#4f46e5';
         this.dom.saveCatBtn.textContent = 'Add Category';
-        this.renderCategoryList();
-        this.renderAll();
-      }
-
-      openCategoryEditor(categoryId) {
-        const category = this.data.categories.find(c => c.id === categoryId);
-        if (!category) return;
-        this.dom.editingCategoryId.value = category.id;
-        this.dom.catNameInput.value = category.name;
-        this.dom.catTypeInput.value = category.type;
-        this.dom.catColorInput.value = category.color || '#4f46e5';
-        this.dom.catBudgetInput.value = category.monthlyBudget || 0;
-        this.dom.saveCatBtn.textContent = 'Update Category';
-        document.querySelector('[data-tab="categories"]').click();
-      }
-
-      deleteTransaction(id) {
-        if (!confirm('Delete transaction?')) return;
-        this.data.transactions = this.data.transactions.filter(t => t.id !== id);
-        this.recalculateAccountBalances();
         this.saveState();
         this.renderAll();
-      }
-
-      deleteAccount(id) {
-        if (!confirm('Delete account?')) return;
-        this.data.accounts = this.data.accounts.filter(a => a.id !== id);
-        this.recalculateAccountBalances();
-        this.saveState();
-        this.renderAll();
-      }
-
-      deleteCategory(id) {
-        if (!confirm('Delete category?')) return;
-        this.data.categories = this.data.categories.filter(c => c.id !== id);
-        this.saveState();
-        this.renderCategoryList();
-        this.renderAll();
-      }
-
-      getFilteredTransactions() {
-        const dateRange = this.dom.filterDateRange.value;
-        const catId = this.dom.filterCategory.value;
-        const accId = this.dom.filterAccount.value;
-        const tagQuery = this.dom.filterTag.value.toLowerCase().trim();
-        const now = new Date();
-
-        const filtered = this.data.transactions.filter(tx => {
-          if (catId !== 'all' && tx.categoryId !== catId) return false;
-          if (accId !== 'all' && tx.accountId !== accId) return false;
-          if (tagQuery && !(tx.tags && tx.tags.some(t => t.toLowerCase().includes(tagQuery)))) return false;
-
-          const txDate = new Date(tx.date);
-          if (dateRange === 'today') return txDate.toDateString() === now.toDateString();
-          if (dateRange === 'this_week') {
-            const diffDays = (now - txDate) / (1000 * 60 * 60 * 24);
-            return diffDays >= 0 && diffDays <= 7;
-          }
-          if (dateRange === 'this_month') return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
-          return true;
-        });
-
-        return this.sortTransactionsList(filtered);
-      }
-
-      applyFilters() {
-        const transactions = this.getFilteredTransactions();
-        this.renderTransactions(transactions);
-        this.updateSummary(transactions);
-      }
-
-      updateSummary(transactions) {
-        const income = transactions.filter(tx => tx.type === 'INCOME').reduce((sum, tx) => sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency), 0);
-        const expense = transactions.filter(tx => tx.type === 'EXPENSE').reduce((sum, tx) => sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency), 0);
-
-        this.dom.summaryIncome.textContent = this.formatCurrency(income, this.data.baseCurrency);
-        this.dom.summaryExpense.textContent = this.formatCurrency(expense, this.data.baseCurrency);
-        this.dom.summaryNet.textContent = this.formatCurrency(income - expense, this.data.baseCurrency);
-        this.dom.summaryLiquidity.textContent = this.formatCurrency(this.data.accounts.reduce((sum, acc) => sum + this.convertCurrency(Number(acc.currentBalance) || 0, acc.currency, this.data.baseCurrency), 0), this.data.baseCurrency);
-      }
-
-      renderTransactions(transactions) {
-        this.dom.transactionTableBody.innerHTML = '';
-        if (!transactions.length) {
-          this.dom.transactionTableBody.innerHTML = '<tr><td colspan="11" class="p-4 text-center text-slate-400">No transactions match the current filters.</td></tr>';
-          return;
-        }
-
-        transactions.forEach(tx => {
-          const acc = this.data.accounts.find(a => a.id === tx.accountId);
-          const cat = this.data.categories.find(c => c.id === tx.categoryId);
-          const txAmount = Number(tx.amount) || 0;
-          const inrEquivalent = this.convertCurrency(txAmount, tx.currency, 'INR');
-
-          const row = document.createElement('tr');
-          row.className = 'align-top';
-          row.innerHTML = `
-            <td class="p-3">${tx.date}</td>
-            <td class="p-3">${tx.time || '00:00'}</td>
-            <td class="p-3"><span class="px-2 py-1 rounded-full ${tx.type === 'INCOME' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} font-medium">${tx.type}</span></td>
-            <td class="p-3">${cat ? cat.name : 'Unknown'}</td>
-            <td class="p-3">${tx.vendor || '-'}</td>
-            <td class="p-3">${acc ? acc.name : '-'}</td>
-            <td class="p-3 font-semibold">${tx.currency}</td>
-            <td class="p-3 text-right font-bold ${tx.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}">${this.formatCurrency(txAmount, tx.currency)}</td>
-            <td class="p-3 text-right font-semibold text-indigo-700">${this.formatCurrency(inrEquivalent, 'INR')}</td>
-            <td class="p-3">${tx.tags && tx.tags.length ? tx.tags.map(t => `#${t}`).join(', ') : '-'}</td>
-            <td class="p-3 text-center">
-              <div class="flex justify-center gap-2">
-                <button onclick="window.app.moveItem('transactions', '${tx.id}', 'up')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Up"><i class="fa-solid fa-arrow-up"></i></button>
-                <button onclick="window.app.moveItem('transactions', '${tx.id}', 'down')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Down"><i class="fa-solid fa-arrow-down"></i></button>
-                <button onclick="window.app.openTransactionModal('${tx.id}')" class="text-indigo-600 hover:underline" title="Edit"><i class="fa-solid fa-pen"></i></button>
-                <button onclick="window.app.deleteTransaction('${tx.id}')" class="text-rose-500 hover:underline" title="Delete"><i class="fa-solid fa-trash"></i></button>
-              </div>
-            </td>
-          `;
-          this.dom.transactionTableBody.appendChild(row);
-        });
-      }
-
-      renderAll() {
-        this.populateDropdowns();
-        this.renderAccounts();
-        this.renderCategoryList();
-        this.renderSplitLedgerSummary();
-        this.renderBudgetOverview();
-        this.applyFilters();
-      }
-
-      renderAccounts() {
-        const container = this.dom.accountListContainer;
-        container.innerHTML = '';
-
-        this.data.accounts.forEach(acc => {
-          const el = document.createElement('div');
-          const balanceDisplay = this.formatCurrency(this.convertCurrency(acc.currentBalance, acc.currency), this.data.baseCurrency);
-          el.className = 'p-4 bg-white rounded-xl border border-slate-200 shadow-sm flex justify-between items-center';
-          el.innerHTML = `
-            <div>
-              <div class="font-bold text-sm text-slate-800">${acc.name}</div>
-              <div class="text-[10px] text-slate-400 uppercase font-semibold">${acc.type} • ${acc.currency}</div>
-            </div>
-            <div class="text-right">
-              <div class="font-bold text-sm text-slate-700">${balanceDisplay}</div>
-              <div class="flex gap-2 justify-end mt-1 flex-wrap">
-                <button onclick="window.app.moveItem('accounts', '${acc.id}', 'up')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Up"><i class="fa-solid fa-arrow-up"></i></button>
-                <button onclick="window.app.moveItem('accounts', '${acc.id}', 'down')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Down"><i class="fa-solid fa-arrow-down"></i></button>
-                <button onclick="window.app.openAccountModal('${acc.id}')" class="text-xs text-indigo-600 font-medium hover:underline"><i class="fa-solid fa-pen"></i> Edit</button>
-                <button onclick="window.app.deleteAccount('${acc.id}')" class="text-xs text-rose-500 font-medium hover:underline"><i class="fa-solid fa-trash"></i> Delete</button>
-              </div>
-            </div>
-          `;
-          container.appendChild(el);
-        });
-      }
-
-      renderCategoryList() {
-        const container = this.dom.categoryListContainer;
-        container.innerHTML = '';
-
-        this.data.categories.forEach(cat => {
-          const el = document.createElement('div');
-          el.className = 'p-3 bg-white rounded-xl border border-slate-200 shadow-sm flex justify-between items-center text-xs';
-          el.innerHTML = `
-            <div class="flex items-center gap-2">
-              <span class="inline-block w-3 h-3 rounded-full" style="background:${cat.color || '#4f46e5'}"></span>
-              <span class="font-medium text-slate-700">${cat.name}</span>
-              <span class="text-[10px] text-slate-400">(${cat.type})</span>
-            </div>
-            <div class="flex items-center gap-2">
-              ${cat.monthlyBudget ? `<span class="text-[10px] text-slate-500">Budget: ${this.formatCurrency(cat.monthlyBudget, this.data.baseCurrency)}</span>` : '<span class="text-[10px] text-slate-500">No budget</span>'}
-              <button onclick="window.app.moveItem('categories', '${cat.id}', 'up')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Up"><i class="fa-solid fa-arrow-up"></i></button>
-              <button onclick="window.app.moveItem('categories', '${cat.id}', 'down')" class="order-btn text-slate-500 hover:text-slate-700" title="Move Down"><i class="fa-solid fa-arrow-down"></i></button>
-              <button onclick="window.app.openCategoryEditor('${cat.id}')" class="text-indigo-500 hover:underline"><i class="fa-solid fa-pen"></i></button>
-              <button onclick="window.app.deleteCategory('${cat.id}')" class="text-rose-500 hover:underline"><i class="fa-solid fa-trash"></i></button>
-            </div>
-          `;
-          container.appendChild(el);
-        });
-      }
-
-      renderSplitLedgerSummary() {
-        const container = this.dom.splitLedgerSummary;
-        container.innerHTML = '';
-        const splitTransactions = this.data.transactions.filter(tx => tx.isSplit && tx.splitPerson && Number(tx.splitAmount || 0) > 0);
-        if (!splitTransactions.length) {
-          container.innerHTML = '<div class="col-span-full p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">No split expenses yet.</div>';
-          return;
-        }
-        splitTransactions.forEach(tx => {
-          const card = document.createElement('div');
-          const owed = this.convertCurrency(Number(tx.splitAmount || 0), tx.currency, this.data.baseCurrency);
-          card.className = 'p-3 rounded-xl bg-white border border-slate-200 shadow-sm';
-          card.innerHTML = `
-            <div class="text-[10px] uppercase text-slate-400 font-semibold">${tx.splitPerson}</div>
-            <div class="mt-1 font-bold text-slate-700">${this.formatCurrency(owed, this.data.baseCurrency)}</div>
-            <div class="mt-1 text-[10px] text-slate-500">${tx.vendor || 'Shared expense'}</div>
-          `;
-          container.appendChild(card);
-        });
-      }
-
-      renderBudgetOverview() {
-        const monthStart = new Date();
-        monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-        const budgetOverview = this.dom.budgetOverviewList;
-        budgetOverview.innerHTML = '';
-        const monthlyBudgetList = this.data.categories.filter(cat => cat.type === 'EXPENSE' && Number(cat.monthlyBudget || 0) > 0);
-        let totalBudget = 0;
-        let totalSpent = 0;
-
-        monthlyBudgetList.forEach(cat => {
-          const spent = this.data.transactions.filter(tx => tx.type === 'EXPENSE' && tx.categoryId === cat.id).reduce((sum, tx) => {
-            const txDate = new Date(tx.date);
-            if (txDate.getMonth() === monthStart.getMonth() && txDate.getFullYear() === monthStart.getFullYear()) {
-              return sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency);
-            }
-            return sum;
-          }, 0);
-
-          const effectiveBudget = Number(cat.monthlyBudget || 0);
-          totalBudget += effectiveBudget;
-          totalSpent += spent;
-
-          const percent = effectiveBudget > 0 ? Math.min((spent / effectiveBudget) * 100, 100) : 0;
-          const row = document.createElement('div');
-          row.className = 'space-y-1';
-          row.innerHTML = `
-            <div class="flex items-center justify-between text-xs">
-              <div class="flex items-center gap-2">
-                <span class="inline-block w-2.5 h-2.5 rounded-full" style="background:${cat.color || '#4f46e5'}"></span>
-                <span class="font-medium text-slate-700">${cat.name}</span>
-              </div>
-              <span class="font-semibold ${spent > effectiveBudget ? 'text-rose-600' : 'text-slate-600'}">${this.formatCurrency(spent, this.data.baseCurrency)} / ${this.formatCurrency(effectiveBudget, this.data.baseCurrency)}</span>
-            </div>
-            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div class="h-full rounded-full" style="width:${Math.max(Math.min(percent, 100), 0)}%; background:${cat.color || '#4f46e5'}"></div>
-            </div>
-          `;
-          budgetOverview.appendChild(row);
-        });
-
-        if (!monthlyBudgetList.length) {
-          budgetOverview.innerHTML = '<div class="text-xs text-slate-400 italic">No category budgets configured yet.</div>';
-        }
-
-        this.dom.budgetSummary.textContent = `${this.formatCurrency(totalSpent, this.data.baseCurrency)} / ${this.formatCurrency(totalBudget, this.data.baseCurrency)}`;
-
-        const topCategory = this.data.categories.filter(cat => cat.type === 'EXPENSE').map(cat => ({
-          ...cat,
-          spent: this.data.transactions.filter(tx => tx.type === 'EXPENSE' && tx.categoryId === cat.id).reduce((sum, tx) => {
-            const txDate = new Date(tx.date);
-            if (txDate.getMonth() === monthStart.getMonth() && txDate.getFullYear() === monthStart.getFullYear()) {
-              return sum + this.convertCurrency(Number(tx.amount) || 0, tx.currency, this.data.baseCurrency);
-            }
-            return sum;
-          }, 0)
-        })).sort((a, b) => b.spent - a.spent)[0];
-
-        const largestTxn = [...this.data.transactions].filter(tx => tx.type === 'EXPENSE').sort((a, b) => this.convertCurrency(Number(b.amount), b.currency, this.data.baseCurrency) - this.convertCurrency(Number(a.amount), a.currency, this.data.baseCurrency))[0];
-
-        const insightList = [];
-        if (topCategory) {
-          insightList.push({ title: 'Top spend', value: `${topCategory.name} • ${this.formatCurrency(topCategory.spent, this.data.baseCurrency)}` });
-        }
-        if (largestTxn) {
-          insightList.push({ title: 'Largest expense', value: `${largestTxn.vendor || 'Transaction'} • ${this.formatCurrency(this.convertCurrency(Number(largestTxn.amount), largestTxn.currency, this.data.baseCurrency), this.data.baseCurrency)}` });
-        }
-        if (!insightList.length) {
-          insightList.push({ title: 'No data', value: 'Add transactions to start insights' });
-        }
-
-        this.dom.insightCards.innerHTML = insightList.map(item => `
-          <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
-            <div class="text-[10px] uppercase text-slate-400 font-semibold">${item.title}</div>
-            <div class="mt-1 text-sm font-semibold text-slate-700">${item.value}</div>
-          </div>
-        `).join('');
       }
 
       exportCSV() {
-        const rows = this.data.transactions.map(tx => ({
+        const rows = this.getVisibleTransactions().map(tx => ({
           Date: tx.date,
           Time: tx.time || '',
           Type: tx.type,
-          Amount: tx.amount,
-          Currency: tx.currency,
-          Account: this.data.accounts.find(a => a.id === tx.accountId)?.name || tx.accountId,
-          Category: this.data.categories.find(c => c.id === tx.categoryId)?.name || tx.categoryId,
+          Category: this.data.categories.find(c => c.id === tx.categoryId)?.name || '',
           Vendor: tx.vendor || '',
-          Tags: (tx.tags || []).join('; '),
+          Account: this.data.accounts.find(a => a.id === tx.accountId)?.name || '',
+          Currency: tx.currency,
+          Amount: tx.amount,
+          RateToINR: this.resolveRateForTransaction(tx),
+          INREquivalent: this.getEquivalentInINR(tx),
+          Tags: (tx.tags || []).join(', '),
           Notes: tx.notes || ''
         }));
 
-        const headers = Object.keys(rows[0] || { Date: '', Time: '', Type: '', Amount: '', Currency: '', Account: '', Category: '', Vendor: '', Tags: '', Notes: '' });
-        const csv = [headers.join(',')].concat(rows.map(row => headers.map(key => `"${String(row[key] || '').replace(/"/g, '""')}"`).join(','))).join('\n');
-        this.downloadFile(csv, 'trackwise-transactions.csv', 'text/csv;charset=utf-8;');
+        const csv = [Object.keys(rows[0] || {}).join(','), ...rows.map(r => Object.values(r).map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'trackwise_transactions.csv';
+        link.click();
+      }
+
+      exportExcel() {
+        const rows = this.getVisibleTransactions().map(tx => ({
+          Date: tx.date,
+          Time: tx.time || '',
+          Type: tx.type,
+          Category: this.data.categories.find(c => c.id === tx.categoryId)?.name || '',
+          Vendor: tx.vendor || '',
+          Account: this.data.accounts.find(a => a.id === tx.accountId)?.name || '',
+          Currency: tx.currency,
+          Amount: tx.amount,
+          RateToINR: this.resolveRateForTransaction(tx),
+          INREquivalent: this.getEquivalentInINR(tx),
+          Tags: (tx.tags || []).join(', '),
+          Notes: tx.notes || ''
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+        XLSX.writeFile(wb, 'trackwise_transactions.xlsx');
       }
 
       exportPDF() {
-        if (!window.jspdf || !window.jspdf.jsPDF) {
-          alert('PDF export library not loaded.');
-          return;
-        }
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        let y = 18;
-        doc.setFontSize(16);
+        const rows = this.getVisibleTransactions();
+        let y = 16;
+        doc.setFontSize(14);
         doc.text('TrackWise Pro - Transactions', 14, y);
         y += 10;
-
-        const rows = this.data.transactions.map(tx => [
-          tx.date,
-          tx.time || '',
-          tx.type,
-          `${this.convertCurrency(Number(tx.amount), tx.currency, 'INR').toFixed(2)}`,
-          this.data.accounts.find(a => a.id === tx.accountId)?.name || '',
-          this.data.categories.find(c => c.id === tx.categoryId)?.name || ''
-        ]);
-
-        doc.setFontSize(10);
-        doc.text('Date', 14, y); doc.text('Time', 38, y); doc.text('Type', 58, y); doc.text('INR', 78, y); doc.text('Account', 100, y); doc.text('Category', 150, y); y += 6;
-        rows.forEach((row) => {
-          if (y > 280) { doc.addPage(); y = 20; }
-          doc.text(String(row[0] || ''), 14, y);
-          doc.text(String(row[1] || ''), 38, y);
-          doc.text(String(row[2] || ''), 58, y);
-          doc.text(String(row[3] || ''), 78, y);
-          doc.text(String(row[4] || '').slice(0, 18), 100, y);
-          doc.text(String(row[5] || '').slice(0, 18), 150, y);
-          y += 6;
+        rows.slice(0, 20).forEach((tx, idx) => {
+          doc.setFontSize(8);
+          const txt = `${tx.date} | ${tx.type} | ${tx.currency} ${tx.amount} | INR ${this.getEquivalentInINR(tx).toFixed(2)}`;
+          doc.text(`${idx + 1}. ${txt}`, 14, y);
+          y += 7;
+          if (y > 260) {
+            doc.addPage();
+            y = 16;
+          }
         });
-        doc.save('trackwise-transactions.pdf');
+        doc.save('trackwise_transactions.pdf');
       }
 
       exportJSON() {
-        const blob = new Blob([JSON.stringify(this.data, null, 2)], { type: 'application/json' });
-        this.downloadFile(blob, 'trackwise-pro-backup.json', 'application/json');
-      }
-
-      downloadFile(content, filename, mimeType) {
-        const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        const blob = new Blob([JSON.stringify(this.getVisibleTransactions(), null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'trackwise_transactions.json';
+        link.click();
       }
 
       processImport() {
         const file = this.dom.importFileInput.files[0];
         if (!file) {
-          alert('Please choose a CSV or Excel file to import.');
+          alert('Please choose a file first.');
           return;
         }
 
-        const kind = this.dom.importType.value;
-        const fileName = file.name.toLowerCase();
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const text = e.target.result;
+            const rows = text.split(/\r?\n/).filter(Boolean);
+            if (!rows.length) return;
+            const headers = rows[0].split(',').map(h => h.trim());
 
-        if (fileName.endsWith('.csv')) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const rows = this.parseCSV(e.target.result);
-            this.importRows(kind, rows);
-          };
-          reader.readAsText(file);
-          return;
-        }
+            if (this.dom.importType.value === 'accounts') {
+              const imported = rows.slice(1).map(row => {
+                const values = row.split(',');
+                const payload = Object.fromEntries(headers.map((h, i) => [h, values[i] || '']));
+                return {
+                  id: 'acc-' + Date.now() + Math.random().toString(16).slice(2),
+                  name: payload.name,
+                  type: payload.type || 'BANK',
+                  currency: payload.currency || 'INR',
+                  parentId: null,
+                  initialBalance: Number(payload.balance || payload.currentBalance || 0),
+                  currentBalance: Number(payload.balance || payload.currentBalance || 0)
+                };
+              }).filter(a => a.name);
 
-        if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: '' });
-            this.importRows(kind, rows);
-          };
-          reader.readAsArrayBuffer(file);
-          return;
-        }
+              this.data.accounts.push(...imported);
+            } else {
+              const imported = rows.slice(1).map(row => {
+                const values = row.split(',');
+                const payload = Object.fromEntries(headers.map((h, i) => [h, values[i] || '']));
+                const account = this.data.accounts.find(a => a.name.toLowerCase() === String(payload.account || '').toLowerCase());
+                const category = this.data.categories.find(c => c.name.toLowerCase() === String(payload.category || '').toLowerCase());
+                return {
+                  id: 'tx-' + Date.now() + Math.random().toString(16).slice(2),
+                  type: (payload.type || 'EXPENSE').toUpperCase(),
+                  date: payload.date || new Date().toISOString().split('T')[0],
+                  time: payload.time || '09:00',
+                  amount: Number(payload.amount || 0),
+                  currency: payload.currency || 'INR',
+                  fxMarkup: 0,
+                  fxRate: Number(payload.fxRate || this.resolveRateForCurrency(payload.currency || 'INR')),
+                  fxOverride: null,
+                  accountId: account ? account.id : this.data.accounts[0]?.id,
+                  categoryId: category ? category.id : this.data.categories[0]?.id,
+                  subcategory: payload.subcategory || '',
+                  vendor: payload.vendor || '',
+                  tags: String(payload.tags || '').split(',').map(t => t.trim()).filter(Boolean),
+                  notes: payload.notes || '',
+                  isSplit: false,
+                  splitPerson: null,
+                  splitAmount: 0
+                };
+              }).filter(t => Number(t.amount) > 0);
 
-        alert('Unsupported file type. Please upload CSV or Excel (.xlsx/.xls).');
-      }
-
-      parseCSV(text) {
-        const lines = text.trim().split(/\r?\n/).filter(Boolean);
-        if (!lines.length) return [];
-        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-        return lines.slice(1).map(line => {
-          const values = line.match(/(".*?"|[^,]+)/g) || [];
-          const obj = {};
-          headers.forEach((header, index) => {
-            obj[header] = (values[index] || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
-          });
-          return obj;
-        });
-      }
-
-      importRows(kind, rows) {
-        if (kind === 'accounts') {
-          rows.forEach(row => {
-            const name = (row.name || row.account || row.Account || '').trim();
-            if (!name) return;
-            if (this.data.accounts.some(a => a.name.toLowerCase() === name.toLowerCase())) return;
-            const account = {
-              id: 'acc-' + Date.now() + '-' + Math.random().toString(16).slice(2),
-              name,
-              type: (row.type || row.Type || 'BANK').toUpperCase(),
-              currency: (row.currency || row.Currency || this.data.baseCurrency).toUpperCase(),
-              parentId: null,
-              initialBalance: Number(row.balance || row.initialBalance || row.opening_balance || 0),
-              currentBalance: Number(row.balance || row.initialBalance || row.opening_balance || 0)
-            };
-            this.data.accounts.push(account);
-          });
-        }
-
-        if (kind === 'transactions') {
-          rows.forEach(row => {
-            const date = (row.date || row.Date || '').trim();
-            if (!date) return;
-            const amount = Number(row.amount || row.Amount || 0);
-            const type = (row.type || row.Type || 'EXPENSE').toUpperCase();
-            const accountName = (row.account || row.Account || '').trim();
-            const categoryName = (row.category || row.Category || '').trim();
-            if (!amount || !accountName || !categoryName) return;
-
-            let account = this.data.accounts.find(a => a.name.toLowerCase() === accountName.toLowerCase());
-            if (!account) {
-              account = { id: 'acc-' + Date.now() + '-' + Math.random().toString(16).slice(2), name: accountName, type: 'BANK', currency: this.data.baseCurrency, parentId: null, initialBalance: 0, currentBalance: 0 };
-              this.data.accounts.push(account);
+              this.data.transactions.unshift(...imported);
             }
 
-            let category = this.data.categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
-            if (!category) {
-              category = { id: 'cat-' + Date.now() + '-' + Math.random().toString(16).slice(2), name: categoryName, type: type === 'INCOME' ? 'INCOME' : 'EXPENSE', color: '#4f46e5', monthlyBudget: 0 };
-              this.data.categories.push(category);
-            }
+            this.recalculateAccountBalances();
+            this.saveState();
+            this.renderAll();
+            this.dom.importModal.classList.add('hidden');
+          } catch (error) {
+            console.error(error);
+            alert('Import failed. Please check the CSV format.');
+          }
+        };
 
-            this.data.transactions.push({
-              id: 'tx-' + Date.now() + '-' + Math.random().toString(16).slice(2),
-              type,
-              date,
-              time: (row.time || row.Time || '09:00').trim(),
-              amount,
-              currency: (row.currency || row.Currency || account.currency || this.data.baseCurrency).toUpperCase(),
-              fxMarkup: 0,
-              fxOverride: null,
-              accountId: account.id,
-              categoryId: category.id,
-              subcategory: row.subcategory || row.Subcategory || '',
-              vendor: row.vendor || row.Vendor || '',
-              tags: (row.tags || row.Tags || '').split(';').map(t => t.trim()).filter(Boolean),
-              notes: row.notes || row.Notes || '',
-              isSplit: false,
-              splitPerson: null,
-              splitAmount: 0
+        if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+          const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { raw: true });
+          const data = rows.map(row => ({ ...row }));
+
+          if (this.dom.importType.value === 'accounts') {
+            data.forEach(row => {
+              this.data.accounts.push({
+                id: 'acc-' + Date.now() + Math.random().toString(16).slice(2),
+                name: row.name,
+                type: row.type || 'BANK',
+                currency: row.currency || 'INR',
+                parentId: null,
+                initialBalance: Number(row.balance || row.currentBalance || 0),
+                currentBalance: Number(row.balance || row.currentBalance || 0)
+              });
             });
-          });
+          } else {
+            data.forEach(row => {
+              const account = this.data.accounts.find(a => a.name.toLowerCase() === String(row.account || '').toLowerCase());
+              const category = this.data.categories.find(c => c.name.toLowerCase() === String(row.category || '').toLowerCase());
+              this.data.transactions.unshift({
+                id: 'tx-' + Date.now() + Math.random().toString(16).slice(2),
+                type: (row.type || 'EXPENSE').toUpperCase(),
+                date: row.date || new Date().toISOString().split('T')[0],
+                time: row.time || '09:00',
+                amount: Number(row.amount || 0),
+                currency: row.currency || 'INR',
+                fxMarkup: 0,
+                fxRate: Number(row.fxRate || this.resolveRateForCurrency(row.currency || 'INR')),
+                fxOverride: null,
+                accountId: account ? account.id : this.data.accounts[0]?.id,
+                categoryId: category ? category.id : this.data.categories[0]?.id,
+                subcategory: row.subcategory || '',
+                vendor: row.vendor || '',
+                tags: String(row.tags || '').split(',').map(t => t.trim()).filter(Boolean),
+                notes: row.notes || '',
+                isSplit: false,
+                splitPerson: null,
+                splitAmount: 0
+              });
+            });
+          }
+
+          this.recalculateAccountBalances();
+          this.saveState();
+          this.renderAll();
+          this.dom.importModal.classList.add('hidden');
+          return;
         }
 
-        this.recalculateAccountBalances();
-        this.saveState();
-        this.renderAll();
-        this.dom.importModal.classList.add('hidden');
-        this.dom.importFileInput.value = '';
-        alert(`${kind.charAt(0).toUpperCase() + kind.slice(1)} import completed.`);
+        reader.readAsText(file);
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      new TrackWisePro();
-    });
+    new TrackWisePro();
   </script>
 </body>
 </html>
